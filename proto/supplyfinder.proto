@@ -1,0 +1,57 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "io.grpc.examples.supplyfinder";
+option java_outer_classname = "SupplyFinderProto";
+option objc_class_prefix = "SLF";
+
+package supplyfinder;
+
+service Vendor {
+  // Sends a greeting
+  rpc SayHello (HelloRequest) returns (HelloReply) {}
+  //
+  rpc CheckInventory (FoodID) returns (InventoryInfo) {}
+}
+
+service Supplier {
+  // Sends a greeting
+  rpc SayHello (HelloRequest) returns (HelloReply) {}
+
+  rpc CheckVendor (FoodID) returns (VendorInfo) {}
+}
+
+// The request message containing the user's name.
+message HelloRequest {
+  string name = 1;
+}
+
+// The response message containing the greetings
+message HelloReply {
+  string message = 1;
+}
+
+message Request {
+  uint32 food_id = 1;
+  uint32 quantity = 2;
+}
+
+message FoodID {
+  uint32 food_id = 1;
+}
+
+message VendorInfo {
+  string url = 1;
+  string name = 2;
+  string location = 3;
+}
+
+message InventoryInfo {
+  double price = 1;
+  uint32 quantity = 2;
+}
+
+message ShopInfo {
+  VendorInfo vendor = 1;
+  InventoryInfo inventory = 2;
+}
