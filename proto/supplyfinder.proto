@@ -18,7 +18,7 @@ service Supplier {
   // Sends a greeting
   rpc SayHello (HelloRequest) returns (HelloReply) {}
 
-  rpc CheckVendor (FoodID) returns (VendorInfo) {}
+  rpc CheckVendor (FoodID) returns (stream VendorInfo) {}
 }
 
 // The request message containing the user's name.

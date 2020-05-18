@@ -35,6 +35,9 @@ using std::vector;
 using std::pair;
 using grpc::Channel;
 using grpc::ClientContext;
+using grpc::ClientReader;
+using grpc::ClientReaderWriter;
+using grpc::ClientWriter;
 using grpc::Status;
 using supplyfinder::HelloRequest;
 using supplyfinder::HelloReply;
@@ -129,30 +132,43 @@ class SupplierClient {
     }
   }
   
-  VendorInfo InquireVendorInfo (uint32_t food_id) {
+  vector<VendorInfo> InquireVendorInfo (uint32_t food_id) {
     FoodID request;
     request.set_food_id(food_id);
     
-    VendorInfo info;
+    VendorInfo reply;
+    vector<VendorInfo> info;
     
     ClientContext context;
-    
-    Status status = supplier_stub_->CheckVendor(&context, request, &info);
+    std::unique_ptr<ClientReader<VendorInfo>> reader (supplier_stub_->CheckVendor(&context, request));
+    // Status status = supplier_stub_->CheckVendor(&context, request, &info);
+
+    while (reader->Read(&reply)) {
+      info.push_back(reply);
+    }
+
+    Status status = reader->Finish();
     
     if (status.ok()) {
       return info;
     } else {
       std::cout << status.error_code() << ": " << status.error_message()
                 << std::endl;
-      info.set_url("RPC failed");
       return info;
     }
   }
-  
 
  private:
   std::unique_ptr<Supplier::Stub> supplier_stub_;
 };
+
+void PrintVendorInfo (const uint32_t id, const vector<VendorInfo>& info) {
+  std::cout << "The following vendors might have food ID " << id << std::endl;
+  for (auto & i : info) {
+    std::cout << "\tVendor url: " << i.url() << "; name: " << i.name()
+      << "; location: " << i.location() << std::endl;
+  }
+}
 
 vector<pair<VendorInfo, InventoryInfo>> ProcessRequest(const std::string& supplier_target_str, uint32_t food_id) {
   /*
@@ -165,20 +181,20 @@ vector<pair<VendorInfo, InventoryInfo>> ProcessRequest(const std::string& suppli
   SupplierClient supplier_client(grpc::CreateChannel(
       supplier_target_str, grpc::InsecureChannelCredentials()));
       
-  VendorInfo vendor_info = supplier_client.InquireVendorInfo(food_id);
+  vector<VendorInfo> vendor_info = supplier_client.InquireVendorInfo(food_id);
   
-  std::cout << "Vendor info received: " << vendor_info.url() << std::endl;
+  PrintVendorInfo(food_id, vendor_info);
   
-  VendorClient vendor_client(grpc::CreateChannel(
-      vendor_info.url(), grpc::InsecureChannelCredentials()));
-      
-  InventoryInfo inventory_info = vendor_client.InquireInventoryInfo(food_id);
-  
-  // error checking: if no inventory, price == -1
-  if (inventory_info.price() < 0)
-    std::cout << "vendor at " << vendor_info.url() << " doesn't have food " << food_id << std::endl;
-  else
-    result.push_back(std::make_pair(vendor_info, inventory_info));
+  for (const auto & vendor : vendor_info) {
+    VendorClient vendor_client(grpc::CreateChannel(
+      vendor.url(), grpc::InsecureChannelCredentials()));
+    InventoryInfo inventory_info = vendor_client.InquireInventoryInfo(food_id);
+    // error checking: if no inventory, price == -1
+    if (inventory_info.price() < 0)
+      std::cout << "vendor at " << vendor.url() << " doesn't have food " << food_id << std::endl;
+    else
+      result.push_back(std::make_pair(vendor, inventory_info));
+  }
   return result;
 }
 

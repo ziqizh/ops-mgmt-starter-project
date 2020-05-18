@@ -20,6 +20,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <vector>
 #include <cstdint>
 
 #include <grpcpp/grpcpp.h>
@@ -32,9 +33,13 @@
 #include "supplyfinder.grpc.pb.h"
 #endif
 
+using std::vector;
 using grpc::Server;
 using grpc::ServerBuilder;
 using grpc::ServerContext;
+using grpc::ServerReader;
+using grpc::ServerReaderWriter;
+using grpc::ServerWriter;
 using grpc::Status;
 using grpc::StatusCode;
 using supplyfinder::HelloRequest;
@@ -43,18 +48,31 @@ using supplyfinder::FoodID;
 using supplyfinder::VendorInfo;
 using supplyfinder::Supplier;
 
-std::unordered_map<uint32_t, VendorInfo> vendor_db;
-
-void InitDB () {
-  VendorInfo vendor;
-  vendor.set_url("localhost:50052");
-  vendor.set_name("Kroger");
-  vendor.set_location("Ann Arbor, MI");
-  vendor_db[1] = vendor;
-}
-
 // Logic and data behind the server's behavior.
 class SupplierServiceImpl final : public Supplier::Service {
+  private:
+  // DB maintains a mapping ID -> vector<VendorInfo>.
+  // Stores instance of VendorInfo for simplicity. May cause data redundency.
+  std::unordered_map<uint32_t, vector<VendorInfo>> vendor_db;
+  
+  public:
+  SupplierServiceImpl () {
+    VendorInfo vendor;
+    vendor.set_url("localhost:50052");
+    vendor.set_name("Kroger");
+    vendor.set_location("Ann Arbor, MI");
+    vendor_db[1].push_back(vendor);
+    vendor.set_url("localhost:50053");
+    vendor.set_name("Trader Joes");
+    vendor.set_location("Pittsburgh, PA");
+    vendor_db[1].push_back(vendor);
+
+    vendor_db[2].push_back(vendor);
+    vendor.set_url("localhost:50054");
+    vendor.set_name("Costco");
+    vendor.set_location("Rochester, NY");
+    vendor_db[2].push_back(vendor);
+  }
   Status SayHello(ServerContext* context, const HelloRequest* request,
                   HelloReply* reply) override {
     std::string prefix("Hello ");
@@ -63,14 +81,14 @@ class SupplierServiceImpl final : public Supplier::Service {
   }
 
   Status CheckVendor(ServerContext* context, const FoodID* request,
-                  VendorInfo* reply) override {
+                  ServerWriter<VendorInfo>* writer) override {
     std::cout << "supplier server received id: " << request->food_id() << std::endl;
     if (vendor_db.find(request->food_id()) == vendor_db.end()) {
       return Status(StatusCode::NOT_FOUND, "Food ID not found.");;
     }
-    reply->set_url(vendor_db[request->food_id()].url());
-    reply->set_name(vendor_db[request->food_id()].name());
-    reply->set_location(vendor_db[request->food_id()].location());
+    for (const auto & vendor : vendor_db[request->food_id()]) {
+      writer->Write(vendor);
+    }
     return Status::OK;
   }
 };
@@ -98,7 +116,6 @@ void RunServer() {
 }
 
 int main(int argc, char** argv) {
-  InitDB();
   RunServer();
 
   return 0;
