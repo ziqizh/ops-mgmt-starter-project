@@ -102,11 +102,7 @@ void PrintResult (const uint32_t id, const vector<ShopInfo>& result) {
 }
 
 int main(int argc, char** argv) {
-  // Instantiate the client. It requires a channel, out of which the actual RPCs
-  // are created. This channel models a connection to an endpoint specified by
-  // the argument "--target=" which is the only expected argument.
-  // We indicate that the channel isn't authenticated (use of
-  // InsecureChannelCredentials()).
+  // Parse Argument
   std::string target_str;
   std::string arg_str("--target");
   if (argc > 1) {
@@ -128,11 +124,12 @@ int main(int argc, char** argv) {
     target_str = "localhost:50051";
   }
   
-  
-  std::cout << "========== Testing Server ==========" << std::endl;
-  std::cout << "Querying FoodID = 1" << std::endl;
-  vector<ShopInfo> result = ProcessRequest(target_str, 1, 10);
-  PrintResult(1, result);
+  // Test
+  for (int i = 0; i < 3; i++) {
+    std::cout << "========== Querying FoodID = " << i << " ==========" << std::endl;
+    vector<ShopInfo> result = ProcessRequest(target_str, i, 10);
+    PrintResult(i, result);
+  }
   
   return 0;
 }

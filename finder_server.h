@@ -16,6 +16,10 @@
 #endif
 
 class VendorClient {
+  /*
+   * VendorClient talks to vendor servers. Created when the Finder receives 
+   * VendorInfo from Supplier Server
+   */
   public:
   VendorClient(std::shared_ptr<grpc::Channel> vendor_channel):
   vendor_stub_(supplyfinder::Vendor::NewStub(vendor_channel)) {}
@@ -27,7 +31,10 @@ class VendorClient {
 };
 
 class SupplierClient {
- public:
+  /*
+   * SupplierClient talks to the supplier server.  
+   */
+  public:
   SupplierClient(std::shared_ptr<grpc::Channel> supplier_channel)
       : supplier_stub_(supplyfinder::Supplier::NewStub(supplier_channel)) {}
 
@@ -41,6 +48,11 @@ class SupplierClient {
 };
 
 class FinderServiceImpl final : public supplyfinder::Finder::Service {
+  /*
+   * Finder service receive request (food_id, quantity) from clients. 
+   * It first query a list of vendors with food id from the supplier server
+   * Then it creates SupplierClients for each vendor server and query inventory information
+   */
   public:
   FinderServiceImpl(std::string supplier_target_str): supplier_client_(grpc::CreateChannel(
       supplier_target_str, grpc::InsecureChannelCredentials())) {}
