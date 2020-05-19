@@ -23,6 +23,10 @@
 #include <cstdint>
 #include <thread>
 #include <vector>
+#include <stdlib.h> 
+#include <random>
+#include <algorithm>
+#include <iterator>
 
 #include <grpcpp/grpcpp.h>
 #include <grpcpp/health_check_service_interface.h>
@@ -50,17 +54,24 @@ class VendorServiceImpl final : public Vendor::Service {
   public:
   VendorServiceImpl () {
     /*
-     * Dummy database which contains :
-     * id 1: price 19.5, quantity 10
-     * id 3: price 2.99, quantity 2
+     * Randomly generate inventory information
+     * Each vendor has five items, with price [0, 20.0] and quantity [0, 99]
      */
+    std::vector<int> indices = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+    std::random_device rd;
+    std::mt19937 g(rd());
+    std::shuffle(indices.begin(), indices.end(), g);
     InventoryInfo inv;
-    inv.set_price(19.5);
-    inv.set_quantity(10);
-    inventory_db[1] = inv;
-    inv.set_price(2.99);
-    inv.set_quantity(2);
-    inventory_db[3] = inv;
+    for (int i = 0; i < 5; i++) {
+    
+      int idx = indices[i];
+      double price = rand() % 200 / 10.0;
+      uint32_t quantity = rand() % 100;
+      // std:: cout << "ID: " << idx << " Price: " << price << " Quantity: " << quantity << std::endl;
+      inv.set_price(price);
+      inv.set_quantity(quantity);
+      inventory_db[idx] = inv;
+    }
   }
   Status SayHello(ServerContext* context, const HelloRequest* request,
                   HelloReply* reply) override {
@@ -106,8 +117,8 @@ void RunServer(std::string addr) {
 } 
 
 int main(int argc, char** argv) {
-  int server_number = 3;
-  int base_port = 50052;
+  int server_number = 4;
+  int base_port = 50053;
   std::vector<std::thread> threads;
   for (int i = 0; i < server_number; i++) {
     int port = base_port + i;

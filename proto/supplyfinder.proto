@@ -7,6 +7,10 @@ option objc_class_prefix = "SLF";
 
 package supplyfinder;
 
+service Finder {
+  rpc CheckFood (Request) returns (stream ShopInfo) {}
+}
+
 service Vendor {
   // Sends a greeting
   rpc SayHello (HelloRequest) returns (HelloReply) {}

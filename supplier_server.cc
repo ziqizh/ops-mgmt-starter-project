@@ -53,25 +53,29 @@ class SupplierServiceImpl final : public Supplier::Service {
   private:
   // DB maintains a mapping ID -> vector<VendorInfo>.
   // Stores instance of VendorInfo for simplicity. May cause data redundency.
-  std::unordered_map<uint32_t, vector<VendorInfo>> vendor_db;
-  
+  std::unordered_map<uint32_t, vector<VendorInfo*>> vendor_db;
+  VendorInfo vendor[4];
+
   public:
   SupplierServiceImpl () {
-    VendorInfo vendor;
-    vendor.set_url("localhost:50052");
-    vendor.set_name("Kroger");
-    vendor.set_location("Ann Arbor, MI");
-    vendor_db[1].push_back(vendor);
-    vendor.set_url("localhost:50053");
-    vendor.set_name("Trader Joes");
-    vendor.set_location("Pittsburgh, PA");
-    vendor_db[1].push_back(vendor);
+    vendor[0].set_url("localhost:50053");
+    vendor[0].set_name("Kroger");
+    vendor[0].set_location("Ann Arbor, MI");
+    vendor[1].set_url("localhost:50054");
+    vendor[1].set_name("Trader Joes");
+    vendor[1].set_location("Pittsburgh, PA");
+    vendor[2].set_url("localhost:50055");
+    vendor[2].set_name("Walmart");
+    vendor[2].set_location("Beijing, CN");
+    vendor[3].set_url("localhost:50056");
+    vendor[3].set_name("Costco");
+    vendor[3].set_location("Rochester, NY");
 
-    vendor_db[2].push_back(vendor);
-    vendor.set_url("localhost:50054");
-    vendor.set_name("Costco");
-    vendor.set_location("Rochester, NY");
-    vendor_db[2].push_back(vendor);
+    for (int i = 0; i < 10; i++) {
+      for (int j = 0; j < 4; j++) {
+        vendor_db[i].push_back(&vendor[j]);
+      }
+    }
   }
   Status SayHello(ServerContext* context, const HelloRequest* request,
                   HelloReply* reply) override {
@@ -86,15 +90,15 @@ class SupplierServiceImpl final : public Supplier::Service {
     if (vendor_db.find(request->food_id()) == vendor_db.end()) {
       return Status(StatusCode::NOT_FOUND, "Food ID not found.");;
     }
-    for (const auto & vendor : vendor_db[request->food_id()]) {
-      writer->Write(vendor);
+    for (const auto vendor : vendor_db[request->food_id()]) {
+      writer->Write(*vendor);
     }
     return Status::OK;
   }
 };
 
 void RunServer() {
-  std::string server_address("0.0.0.0:50051");
+  std::string server_address("0.0.0.0:50052");
   SupplierServiceImpl service;
   // service.InitDB();
 
