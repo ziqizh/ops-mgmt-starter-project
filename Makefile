@@ -51,7 +51,6 @@ supplyfinder-supplier: supplyfinder.pb.o supplyfinder.grpc.pb.o supplier/supplie
 	$(CXX) $^ $(LDFLAGS) -o $@
 
 supplyfinder-vendor: supplyfinder.pb.o supplyfinder.grpc.pb.o vendor/vendor.o
-
 	$(CXX) $^ $(LDFLAGS) -o $@
 
 .PRECIOUS: %.grpc.pb.cc
