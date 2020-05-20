@@ -48,41 +48,42 @@ using supplyfinder::Supplier;
 using supplyfinder::ShopInfo;
 using supplyfinder::InventoryInfo;
 
+void PrintResult (const ShopInfo& p) {
+  std::cout << "\tVendor url: " << p.vendor().url() << "; name: " << p.vendor().name()
+    << "; location: " << p.vendor().location() << std::endl;
+  std::cout << "\tInventory price: " << p.inventory().price() << "; quantity: "
+    << p.inventory().quantity() << "\n\n";
+}
+
 class FinderClient {
   public:
     FinderClient(std::shared_ptr<Channel> channel):
       stub_(Finder::NewStub(channel)) {}
     
-    vector<ShopInfo> InquireFoodInfo (uint32_t food_id, uint32_t quantity) {
+    void InquireFoodInfo (uint32_t food_id, uint32_t quantity) {
       Request request;
       request.set_food_id(food_id);
       request.set_quantity(quantity);
-      
       ShopInfo reply;
-      vector<ShopInfo> info;
-      
       ClientContext context;
-      
       std::unique_ptr<ClientReader<ShopInfo>> reader(stub_->CheckFood(&context, request));
 
+      std::cout << "Receiving Shop Information\n";
       while (reader->Read(&reply)) {
-        info.push_back(reply);
+        PrintResult(reply);
       }
 
       Status status = reader->Finish();
-      if (status.ok()) {
-        return info;
-      } else {
+      if (!status.ok()) {
         std::cout << status.error_code() << ": " << status.error_message()
                     << std::endl;
-        return info;
       }
     }
   private:
     std::unique_ptr<Finder::Stub> stub_;
 };
 
-vector<ShopInfo> ProcessRequest(const std::string& target_str, 
+void ProcessRequest(const std::string& target_str, 
     uint32_t food_id, uint32_t quantity) {
   /*
    * Initiate client with supplier channel. Retrieve a list of vendor address
@@ -91,21 +92,8 @@ vector<ShopInfo> ProcessRequest(const std::string& target_str,
    */
   
   FinderClient client(grpc::CreateChannel(
-      target_str, grpc::InsecureChannelCredentials()));
-      
-  vector<ShopInfo> result = client.InquireFoodInfo(food_id, quantity);
-  
-  return result;
-}
-
-void PrintResult (const uint32_t id, const vector<ShopInfo>& result) {
-  std::cout << "The food ID is " << id << std::endl;
-  for (auto & p : result) {
-    std::cout << "\tVendor url: " << p.vendor().url() << "; name: " << p.vendor().name()
-      << "; location: " << p.vendor().location() << std::endl;
-    std::cout << "\tInventory price: " << p.inventory().price() << "; quantity: "
-      << p.inventory().quantity() << std::endl;
-  }
+    target_str, grpc::InsecureChannelCredentials()));
+  client.InquireFoodInfo(food_id, quantity);
 }
 
 int main(int argc, char** argv) {
@@ -133,9 +121,8 @@ int main(int argc, char** argv) {
   
   // Test
   for (int i = 0; i < 3; i++) {
-    std::cout << "========== Querying FoodID = " << i << " Quantity = 60 ==========" << std::endl;
-    vector<ShopInfo> result = ProcessRequest(target_str, i, 60);
-    PrintResult(i, result);
+    std::cout << "========== Querying FoodID = " << i << " Quantity = 50 ==========" << std::endl;
+    ProcessRequest(target_str, i, 50);
   }
   
   return 0;
