@@ -1,21 +1,3 @@
-/*
- *
- * Copyright 2015 gRPC authors.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- */
-
 #include <iostream>
 #include <memory>
 #include <string>
@@ -43,8 +25,6 @@ using grpc::ServerBuilder;
 using grpc::ServerContext;
 using grpc::Status;
 using grpc::StatusCode;
-using supplyfinder::HelloRequest;
-using supplyfinder::HelloReply;
 using supplyfinder::Vendor;
 using supplyfinder::FoodID;
 using supplyfinder::InventoryInfo;
@@ -52,47 +32,40 @@ using supplyfinder::InventoryInfo;
 // Logic and data behind the server's behavior.
 class VendorServiceImpl final : public Vendor::Service {
   public:
-  VendorServiceImpl () {
-    /*
-     * Randomly generate inventory information
-     * Each vendor has five items, with price [0, 20.0] and quantity [0, 99]
-     */
-    std::vector<int> indices = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
-    std::random_device rd;
-    std::mt19937 g(rd());
-    std::shuffle(indices.begin(), indices.end(), g);
-    InventoryInfo inv;
-    for (int i = 0; i < 5; i++) {
-    
-      int idx = indices[i];
-      double price = rand() % 200 / 10.0;
-      uint32_t quantity = rand() % 100;
-      // std:: cout << "ID: " << idx << " Price: " << price << " Quantity: " << quantity << std::endl;
-      inv.set_price(price);
-      inv.set_quantity(quantity);
-      inventory_db[idx] = inv;
+    VendorServiceImpl () {
+      /*
+      * Randomly generate inventory information
+      * Each vendor has five items, with price [0, 20.0] and quantity [0, 99]
+      */
+      std::vector<int> indices = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+      std::random_device rd;
+      std::mt19937 g(rd());
+      std::shuffle(indices.begin(), indices.end(), g);
+      InventoryInfo inv;
+      for (int i = 0; i < 5; i++) {
+      
+        int idx = indices[i];
+        double price = rand() % 200 / 10.0;
+        uint32_t quantity = rand() % 100;
+        inv.set_price(price);
+        inv.set_quantity(quantity);
+        inventory_db[idx] = inv;
+      }
     }
-  }
-  Status SayHello(ServerContext* context, const HelloRequest* request,
-                  HelloReply* reply) override {
-    std::string prefix("Hello ");
-    reply->set_message(prefix + request->name());
-    return Status::OK;
-  }
   
-  Status CheckInventory (ServerContext* context, const FoodID* request,
-                  InventoryInfo* info) {
-    uint32_t food_id = request->food_id();
-    if (inventory_db.find(food_id) == inventory_db.end()) {
-      Status status(StatusCode::NOT_FOUND, "Food ID not found.");
-      return status;
+    Status CheckInventory (ServerContext* context, const FoodID* request,
+                           InventoryInfo* info) {
+      uint32_t food_id = request->food_id();
+      if (inventory_db.find(food_id) == inventory_db.end()) {
+        Status status(StatusCode::NOT_FOUND, "Food ID not found.");
+        return status;
+      }
+      info->set_price(inventory_db[food_id].price());
+      info->set_quantity(inventory_db[food_id].quantity());
+      return Status::OK;
     }
-    info->set_price(inventory_db[food_id].price());
-    info->set_quantity(inventory_db[food_id].quantity());
-    return Status::OK;
-  }
   private:
-  std::unordered_map<uint32_t, InventoryInfo> inventory_db;
+    std::unordered_map<uint32_t, InventoryInfo> inventory_db;
 };
 
 void RunServer(std::string addr) {
@@ -127,7 +100,7 @@ int main(int argc, char** argv) {
     threads.emplace_back(RunServer, addr);
   }
   
-  for (auto & t : threads) {
+  for (auto& t : threads) {
     t.join();
   }
   

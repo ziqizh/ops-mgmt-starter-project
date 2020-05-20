@@ -15,19 +15,24 @@
 #include "supplyfinder.grpc.pb.h"
 #endif
 
+struct Comp {
+  inline bool operator() (const supplyfinder::ShopInfo& lhs, const supplyfinder::ShopInfo& rhs) {
+    return (lhs.inventory().price() < rhs.inventory().price());
+  }
+};
+
 class VendorClient {
   /*
    * VendorClient talks to vendor servers. Created when the Finder receives 
    * VendorInfo from Supplier Server
    */
   public:
-  VendorClient(std::shared_ptr<grpc::Channel> vendor_channel):
-  vendor_stub_(supplyfinder::Vendor::NewStub(vendor_channel)) {}
-  
-  supplyfinder::InventoryInfo InquireInventoryInfo (uint32_t);
+    VendorClient(std::shared_ptr<grpc::Channel> vendor_channel):
+    vendor_stub_(supplyfinder::Vendor::NewStub(vendor_channel)) {}
+    supplyfinder::InventoryInfo InquireInventoryInfo (uint32_t);
   
   private:
-  std::unique_ptr<supplyfinder::Vendor::Stub> vendor_stub_;
+    std::unique_ptr<supplyfinder::Vendor::Stub> vendor_stub_;
 };
 
 class SupplierClient {
@@ -35,16 +40,11 @@ class SupplierClient {
    * SupplierClient talks to the supplier server.  
    */
   public:
-  SupplierClient(std::shared_ptr<grpc::Channel> supplier_channel)
-      : supplier_stub_(supplyfinder::Supplier::NewStub(supplier_channel)) {}
-
-  // Assembles the client's payload, sends it and presents the response back
-  // from the server.
-  std::string SayHelloToSupplier(const std::string&);
-  
-  std::vector<supplyfinder::VendorInfo> InquireVendorInfo (uint32_t food_id);
- private:
-  std::unique_ptr<supplyfinder::Supplier::Stub> supplier_stub_;
+    SupplierClient(std::shared_ptr<grpc::Channel> supplier_channel): 
+                   supplier_stub_(supplyfinder::Supplier::NewStub(supplier_channel)) {}
+    std::vector<supplyfinder::VendorInfo> InquireVendorInfo (uint32_t food_id);
+  private: 
+    std::unique_ptr<supplyfinder::Supplier::Stub> supplier_stub_;
 };
 
 class FinderServiceImpl final : public supplyfinder::Finder::Service {
@@ -54,16 +54,17 @@ class FinderServiceImpl final : public supplyfinder::Finder::Service {
    * Then it creates SupplierClients for each vendor server and query inventory information
    */
   public:
-  FinderServiceImpl(std::string supplier_target_str): supplier_client_(grpc::CreateChannel(
-      supplier_target_str, grpc::InsecureChannelCredentials())) {}
-  grpc::Status CheckFood (grpc::ServerContext*, const supplyfinder::Request*, 
-        grpc::ServerWriter<supplyfinder::ShopInfo>*);
-  static void PrintResult (const uint32_t, 
-        const std::vector<std::pair<supplyfinder::VendorInfo, supplyfinder::InventoryInfo>>&);
-  static void PrintVendorInfo (const uint32_t, const std::vector<supplyfinder::VendorInfo>&);
-  std::vector<supplyfinder::ShopInfo> 
-        ProcessRequest(uint32_t);
+    FinderServiceImpl(std::string supplier_target_str): 
+                      supplier_client_(grpc::CreateChannel(supplier_target_str, grpc::InsecureChannelCredentials())) {}
+    grpc::Status CheckFood (grpc::ServerContext*, const supplyfinder::Request*, 
+                            grpc::ServerWriter<supplyfinder::ShopInfo>*);
+    static void PrintResult (const uint32_t, 
+                            const std::vector<std::pair<supplyfinder::VendorInfo, supplyfinder::InventoryInfo>>&);
+    static void PrintVendorInfo (const uint32_t, 
+                                const std::vector<supplyfinder::VendorInfo>&);
+    std::vector<supplyfinder::ShopInfo> ProcessRequest(uint32_t);
 
   private:
-  SupplierClient supplier_client_;
+    SupplierClient supplier_client_;
+    std::unordered_map<std::string, VendorClient> vendor_clients_;
 };

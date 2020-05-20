@@ -39,40 +39,47 @@ using grpc::Channel;
 using grpc::ClientContext;
 using grpc::ClientReader;
 using grpc::Status;
-using namespace supplyfinder;
+using supplyfinder::FoodID;
+using supplyfinder::Finder;
+using supplyfinder::Request;
+using supplyfinder::VendorInfo;
+using supplyfinder::Vendor;
+using supplyfinder::Supplier;
+using supplyfinder::ShopInfo;
+using supplyfinder::InventoryInfo;
 
 class FinderClient {
   public:
-  FinderClient(std::shared_ptr<Channel> channel):
-    stub_(Finder::NewStub(channel)) {}
-  
-  vector<ShopInfo> InquireFoodInfo (uint32_t food_id, uint32_t quantity) {
-    Request request;
-    request.set_food_id(food_id);
-    request.set_quantity(quantity);
+    FinderClient(std::shared_ptr<Channel> channel):
+      stub_(Finder::NewStub(channel)) {}
     
-    ShopInfo reply;
-    vector<ShopInfo> info;
-    
-    ClientContext context;
-    
-    std::unique_ptr<ClientReader<ShopInfo>> reader (stub_ -> CheckFood(&context, request));
+    vector<ShopInfo> InquireFoodInfo (uint32_t food_id, uint32_t quantity) {
+      Request request;
+      request.set_food_id(food_id);
+      request.set_quantity(quantity);
+      
+      ShopInfo reply;
+      vector<ShopInfo> info;
+      
+      ClientContext context;
+      
+      std::unique_ptr<ClientReader<ShopInfo>> reader(stub_->CheckFood(&context, request));
 
-    while (reader->Read(&reply)) {
+      while (reader->Read(&reply)) {
         info.push_back(reply);
-    }
+      }
 
-    Status status = reader->Finish();
-    if (status.ok()) {
-      return info;
-    } else {
-      std::cout << status.error_code() << ": " << status.error_message()
-                << std::endl;
-      return info;
+      Status status = reader->Finish();
+      if (status.ok()) {
+        return info;
+      } else {
+        std::cout << status.error_code() << ": " << status.error_message()
+                    << std::endl;
+        return info;
+      }
     }
-  }
   private:
-  std::unique_ptr<Finder::Stub> stub_;
+    std::unique_ptr<Finder::Stub> stub_;
 };
 
 vector<ShopInfo> ProcessRequest(const std::string& target_str, 
@@ -96,8 +103,8 @@ void PrintResult (const uint32_t id, const vector<ShopInfo>& result) {
   for (auto & p : result) {
     std::cout << "\tVendor url: " << p.vendor().url() << "; name: " << p.vendor().name()
       << "; location: " << p.vendor().location() << std::endl;
-    std::cout << "\tInventory price: " << p.inventory().price() << "; quantity: " << p.inventory().quantity()
-      << std::endl;
+    std::cout << "\tInventory price: " << p.inventory().price() << "; quantity: "
+      << p.inventory().quantity() << std::endl;
   }
 }
 
@@ -126,8 +133,8 @@ int main(int argc, char** argv) {
   
   // Test
   for (int i = 0; i < 3; i++) {
-    std::cout << "========== Querying FoodID = " << i << " ==========" << std::endl;
-    vector<ShopInfo> result = ProcessRequest(target_str, i, 10);
+    std::cout << "========== Querying FoodID = " << i << " Quantity = 60 ==========" << std::endl;
+    vector<ShopInfo> result = ProcessRequest(target_str, i, 60);
     PrintResult(i, result);
   }
   

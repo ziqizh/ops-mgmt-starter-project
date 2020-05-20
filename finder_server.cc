@@ -1,21 +1,4 @@
-/*
- *
- * Copyright 2015 gRPC authors.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- */
-
+#include <algorithm>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -48,17 +31,30 @@ using grpc::ServerReaderWriter;
 using grpc::ServerWriter;
 using grpc::Status;
 using grpc::StatusCode;
-using namespace supplyfinder;
+using supplyfinder::FoodID;
+using supplyfinder::Finder;
+using supplyfinder::Request;
+using supplyfinder::VendorInfo;
+using supplyfinder::Vendor;
+using supplyfinder::Supplier;
+using supplyfinder::ShopInfo;
+using supplyfinder::InventoryInfo;
 
 Status FinderServiceImpl::CheckFood (ServerContext* context, const Request* request,
  ServerWriter<ShopInfo>* writer) {
 
-  std::cout << "========== Receving Request Food Id=" << request->food_id() << " ==========" << std::endl;
+  std::cout << "========== Receving Request Food Id=" << request->food_id() 
+    << " ==========" << std::endl;
 
   vector<ShopInfo> result = ProcessRequest(request->food_id());
-  // FinderServiceImpl::PrintResult(request->food_id(), result);
-  for (const auto & info : result){
+  long quantity = request->quantity();
+  
+  std::sort(result.begin(), result.end(), Comp());
+
+  for (const auto& info : result){
     writer->Write(info);
+    quantity -= info.inventory().quantity();
+    if (quantity <= 0)  break;
   }
   return Status::OK;
 }
@@ -84,29 +80,6 @@ InventoryInfo VendorClient::InquireInventoryInfo (uint32_t food_id) {
   }
 }
 
-
-string SupplierClient::SayHelloToSupplier(const string& user) {
-  // Data we are sending to the server.
-  HelloRequest request;
-  request.set_name(user);
-
-  HelloReply reply;
-
-  ClientContext context;
-
-  // The actual RPC.
-  Status status = supplier_stub_->SayHello(&context, request, &reply);
-
-  // Act upon its status.
-  if (status.ok()) {
-    return reply.message();
-  } else {
-    std::cout << status.error_code() << ": " << status.error_message()
-              << std::endl;
-    return "RPC failed";
-  }
-}
-
 vector<VendorInfo> SupplierClient::InquireVendorInfo (uint32_t food_id) {
   FoodID request;
   request.set_food_id(food_id);
@@ -115,8 +88,7 @@ vector<VendorInfo> SupplierClient::InquireVendorInfo (uint32_t food_id) {
   vector<VendorInfo> info;
   
   ClientContext context;
-  std::unique_ptr<ClientReader<VendorInfo>> reader (supplier_stub_->CheckVendor(&context, request));
-  // Status status = supplier_stub_->CheckVendor(&context, request, &info);
+  std::unique_ptr<ClientReader<VendorInfo>> reader(supplier_stub_->CheckVendor(&context, request));
 
   while (reader->Read(&reply)) {
     info.push_back(reply);
@@ -133,9 +105,10 @@ vector<VendorInfo> SupplierClient::InquireVendorInfo (uint32_t food_id) {
   }
 }
 
-void FinderServiceImpl::PrintVendorInfo (const uint32_t id, const vector<VendorInfo>& info) {
+void FinderServiceImpl::PrintVendorInfo (const uint32_t id, 
+                                         const vector<VendorInfo>& info) {
   std::cout << "The following vendors might have food ID " << id << std::endl;
-  for (auto & i : info) {
+  for (auto& i : info) {
     std::cout << "\tVendor url: " << i.url() << "; name: " << i.name()
       << "; location: " << i.location() << std::endl;
   }
@@ -153,29 +126,34 @@ vector<ShopInfo> FinderServiceImpl::ProcessRequest(uint32_t food_id) {
   
   FinderServiceImpl::PrintVendorInfo(food_id, vendor_info);
   
-  for (const auto & vendor : vendor_info) {
-    // TODO: save these clients 
-    VendorClient vendor_client(grpc::CreateChannel(
-      vendor.url(), grpc::InsecureChannelCredentials()));
-    InventoryInfo inventory_info = vendor_client.InquireInventoryInfo(food_id);
+  for (const auto& vendor : vendor_info) {
+    // if never connected before, create a new client.
+    const string& url = vendor.url();
+    if (vendor_clients_.find(url) == vendor_clients_.end())
+      vendor_clients_.emplace(url,
+                             VendorClient(grpc::CreateChannel(url, grpc::InsecureChannelCredentials())));
+    auto client = vendor_clients_.find(url);
+
+    InventoryInfo inventory_info = client->second.InquireInventoryInfo(food_id);
     // error checking: if no inventory, price == -1
     if (inventory_info.price() < 0)
-      std::cout << "vendor at " << vendor.url() << " doesn't have food " << food_id << std::endl;
+      std::cout << "vendor at " << url << " doesn't have food " << food_id << std::endl;
     else {
-      VendorInfo* v_ptr = new VendorInfo(vendor);
-      InventoryInfo* i_ptr = new InventoryInfo(inventory_info);
       ShopInfo info;
-      info.set_allocated_vendor(v_ptr);
-      info.set_allocated_inventory(i_ptr);
+      VendorInfo* v_ptr = info.mutable_vendor();
+      InventoryInfo* i_ptr = info.mutable_inventory();
+      *v_ptr = vendor;
+      *i_ptr = inventory_info;
       result.push_back(info);
     }
   }
   return result;
 }
 
-void FinderServiceImpl::PrintResult (const uint32_t id, const vector<pair<VendorInfo, InventoryInfo>>& result) {
+void FinderServiceImpl::PrintResult (const uint32_t id, 
+                                     const vector<pair<VendorInfo, InventoryInfo>>& result) {
   std::cout << "The following " << id << std::endl;
-  for (auto & p : result) {
+  for (auto& p : result) {
     std::cout << "Vendor url: " << p.first.url() << "; name: " << p.first.name()
       << "; location: " << p.first.location() << std::endl;
     std::cout << "Inventory price: " << p.second.price() << "; quantity: " << p.second.quantity()
@@ -211,7 +189,7 @@ int main(int argc, char** argv) {
   // We indicate that the channel isn't authenticated (use of
   // InsecureChannelCredentials()).
   std::string supplier_target_str;
-  std::string arg_str("--target");
+  std::string arg_str = "--target";
   if (argc > 1) {
     std::string arg_val = argv[1];
     size_t start_pos = arg_val.find(arg_str);
