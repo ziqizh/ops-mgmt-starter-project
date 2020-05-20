@@ -72,7 +72,7 @@ class SupplierServiceImpl final : public Supplier::Service {
 };
 
 void RunServer() {
-  std::string server_address("0.0.0.0:50052");
+  std::string server_address = "0.0.0.0:50052";
   SupplierServiceImpl service;
 
   grpc::EnableDefaultHealthCheckService(true);

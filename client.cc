@@ -99,7 +99,7 @@ void ProcessRequest(const std::string& target_str,
 int main(int argc, char** argv) {
   // Parse Argument
   std::string target_str;
-  std::string arg_str("--target");
+  std::string arg_str = "--target";
   if (argc > 1) {
     std::string arg_val = argv[1];
     size_t start_pos = arg_val.find(arg_str);
