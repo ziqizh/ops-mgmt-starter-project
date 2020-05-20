@@ -10,6 +10,10 @@
 // #include <grpcpp/grpcpp.h>
 #include "finder.h"
 
+
+using std::vector;
+using std::pair;
+using std::string;
 using grpc::Channel;
 using grpc::ClientContext;
 using grpc::ClientReader;
