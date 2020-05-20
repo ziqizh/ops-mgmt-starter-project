@@ -26,9 +26,9 @@ function die {
 function push_image {
   local target=$1
 
-  docker build -f "${target}/Dockerfile" -t "greeter-${target}" .
-  docker tag "greeter-${target}" "gcr.io/${PROJECT_ID}/greeter-${target}"
-  docker push "gcr.io/${PROJECT_ID}/greeter-${target}"
+  docker build -f "${target}/Dockerfile" -t "supplyfinder-${target}" .
+  docker tag "supplyfinder-${target}" "gcr.io/${PROJECT_ID}/supplyfinder-${target}"
+  docker push "gcr.io/${PROJECT_ID}/supplyfinder-${target}"
 }
 
 function create_config {
@@ -40,8 +40,19 @@ function push_client {
   push_image client
 }
 
+function deploy_endpoints {
+  gcloud endpoints services deploy api_descriptor.pb api_config.yaml
+}
+
+function enable_api {
+  gcloud services enable supplyfinder.endpoints.cal-intern-project.cloud.goog
+}
+
+function delete_api {
+  gcloud endpoints services delete supplyfinder.endpoints.cal-intern-project.cloud.goog
+}
+
 function update_config {
-  create_config
   kubectl apply -f greeter-server.yaml
 }
 
@@ -52,9 +63,13 @@ function update_server {
 }
 
 function create {
-  push_image server
-  push_client
-  update_config
+  create_pb
+  deploy_endpoints
+  enable_api
+  
+  # push_image server
+  # push_client
+  # update_config
 }
 
 function delete {
@@ -63,7 +78,7 @@ function delete {
 }
 
 function create_pb {
-  protoc --include_imports --include_source_info proto/supplyfinder.proto --descriptor_set_out supplyfinder.pb
+  protoc --include_imports --include_source_info proto/supplyfinder.proto --descriptor_set_out api_descriptor.pb
 }
 
 # main
@@ -73,7 +88,7 @@ echo "PROJECT_ID set to cal-intern-project"
 export PROJECT_ID=cal-intern-project
 fi
 
-if [[ ! "$1" =~ ^(create|delete|update_config|update_server|push_client|create_pb)$ ]]; then
+if [[ ! "$1" =~ ^(create|delete|update_config|update_server|push_client|create_pb|deploy_endpoints)$ ]]; then
   die "Usage: $0 {create|delete|update_config|update_server|push_client}"
 fi
 

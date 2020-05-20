@@ -18,7 +18,7 @@ HOST_SYSTEM = $(shell uname | cut -f 1 -d_)
 SYSTEM ?= $(HOST_SYSTEM)
 CXX = g++
 CPPFLAGS += `pkg-config --cflags protobuf grpc`
-CXXFLAGS += -std=c++11
+CXXFLAGS += -std=c++11 -I .
 ifeq ($(SYSTEM),Darwin)
 LDFLAGS += -L/usr/local/lib `pkg-config --libs protobuf grpc++`\
            -pthread\
@@ -41,16 +41,16 @@ vpath %.proto $(PROTOS_PATH)
 all: system-check supplyfinder-client supplyfinder-finder supplyfinder-supplier supplyfinder-vendor
 # greeter_async_client greeter_async_client2 greeter_async_server
 
-supplyfinder-client: supplyfinder.pb.o supplyfinder.grpc.pb.o client.o
+supplyfinder-client: supplyfinder.pb.o supplyfinder.grpc.pb.o client/client.o
 	$(CXX) $^ $(LDFLAGS) -o $@
 
-supplyfinder-finder: supplyfinder.pb.o supplyfinder.grpc.pb.o finder_server.o
+supplyfinder-finder: supplyfinder.pb.o supplyfinder.grpc.pb.o finder/finder.o
 	$(CXX) $^ $(LDFLAGS) -o $@
 
-supplyfinder-supplier: supplyfinder.pb.o supplyfinder.grpc.pb.o supplier_server.o
+supplyfinder-supplier: supplyfinder.pb.o supplyfinder.grpc.pb.o supplier/supplier.o
 	$(CXX) $^ $(LDFLAGS) -o $@
 
-supplyfinder-vendor: supplyfinder.pb.o supplyfinder.grpc.pb.o vendor_server.o
+supplyfinder-vendor: supplyfinder.pb.o supplyfinder.grpc.pb.o vendor/vendor.o
 	$(CXX) $^ $(LDFLAGS) -o $@
 
 .PRECIOUS: %.grpc.pb.cc
@@ -62,7 +62,7 @@ supplyfinder-vendor: supplyfinder.pb.o supplyfinder.grpc.pb.o vendor_server.o
 	$(PROTOC) -I $(PROTOS_PATH) --cpp_out=. $<
 
 clean:
-	rm -f *.o *.pb.cc *.pb.h client finder_server supplier_server vendor_server
+	rm -f *.o *.pb.cc *.pb.h client/*.o finder/*.o supplier/*.o vendor/*.o
 
 
 # The following is to test your system and ensure a smoother experience.

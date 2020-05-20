@@ -1,0 +1,51 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: greeter-server
+spec:
+  ports:
+    - # optional descriptive name for the service port
+      name: grpc-port
+      # must match the service port specified in ingress
+      port: 50051
+      targetPort: 9000
+      protocol: TCP
+      name: http2
+  # the selector is used to link pods to services
+  selector:
+    app: greeter-server
+  type: LoadBalancer
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: greeter-server
+spec:
+  replicas: 1
+  # all pods matching this selector belong to this deployment
+  selector:
+    matchLabels:
+      app: greeter-server
+  template:
+    metadata:
+      # the other side of the link between services and pods
+      labels:
+        app: greeter-server
+    spec:
+      containers:
+      - name: esp
+        image: gcr.io/endpoints-release/endpoints-runtime:1
+        args: [
+          "--http2_port=9000",
+          "--backend=grpc://127.0.0.1:50051",
+          "--service=helloworld.endpoints.cal-intern-project.cloud.goog",
+          "--rollout_strategy=managed",
+          # "--dns=169.254.169.254",
+        ]
+        ports:
+          - containerPort: 9000
+      - name: greeter-server
+        image: "gcr.io/cal-intern-project/greeter-server:latest"
+        ports:
+          # must match the port of the service
+          - containerPort: 50051
