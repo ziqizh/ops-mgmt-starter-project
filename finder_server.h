@@ -27,8 +27,7 @@ class VendorClient {
    * VendorInfo from Supplier Server
    */
   public:
-    VendorClient(std::shared_ptr<grpc::Channel> vendor_channel):
-    vendor_stub_(supplyfinder::Vendor::NewStub(vendor_channel)) {}
+    VendorClient(std::shared_ptr<grpc::Channel>);
     supplyfinder::InventoryInfo InquireInventoryInfo (uint32_t);
   
   private:
@@ -40,11 +39,13 @@ class SupplierClient {
    * SupplierClient talks to the supplier server.  
    */
   public:
-    SupplierClient(std::shared_ptr<grpc::Channel> supplier_channel): 
-                   supplier_stub_(supplyfinder::Supplier::NewStub(supplier_channel)) {}
-    std::vector<supplyfinder::VendorInfo> InquireVendorInfo (uint32_t food_id);
+    SupplierClient(std::shared_ptr<grpc::Channel>);
+    ~SupplierClient();
+    bool GetVendorInfo (supplyfinder::VendorInfo* vendor_info);
+    void InitReader (grpc::ClientContext*, supplyfinder::FoodID&);
   private: 
     std::unique_ptr<supplyfinder::Supplier::Stub> supplier_stub_;
+    std::unique_ptr<grpc::ClientReader<supplyfinder::VendorInfo>> reader_;
 };
 
 class FinderServiceImpl final : public supplyfinder::Finder::Service {
@@ -54,14 +55,13 @@ class FinderServiceImpl final : public supplyfinder::Finder::Service {
    * Then it creates SupplierClients for each vendor server and query inventory information
    */
   public:
-    FinderServiceImpl(std::string supplier_target_str): 
-                      supplier_client_(grpc::CreateChannel(supplier_target_str, grpc::InsecureChannelCredentials())) {}
+    FinderServiceImpl(std::string supplier_target_str);
     grpc::Status CheckFood (grpc::ServerContext*, const supplyfinder::Request*, 
                             grpc::ServerWriter<supplyfinder::ShopInfo>*);
     static void PrintResult (const uint32_t, 
                             const std::vector<std::pair<supplyfinder::VendorInfo, supplyfinder::InventoryInfo>>&);
     static void PrintVendorInfo (const uint32_t, 
-                                const std::vector<supplyfinder::VendorInfo>&);
+                                const supplyfinder::VendorInfo&);
     std::vector<supplyfinder::ShopInfo> ProcessRequest(uint32_t);
 
   private:

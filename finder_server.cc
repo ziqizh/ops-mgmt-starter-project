@@ -9,12 +9,6 @@
 // #include <grpcpp/grpcpp.h>
 #include "finder_server.h"
 
-// #ifdef BAZEL_BUILD
-// #include "examples/protos/supplyfinder.grpc.pb.h"
-// #else
-// #include "supplyfinder.grpc.pb.h"
-// #endif
-
 using std::vector;
 using std::pair;
 using std::string;
@@ -59,13 +53,13 @@ Status FinderServiceImpl::CheckFood (ServerContext* context, const Request* requ
   return Status::OK;
 }
 
+VendorClient::VendorClient(std::shared_ptr<grpc::Channel> vendor_channel):
+                           vendor_stub_(supplyfinder::Vendor::NewStub(vendor_channel)) {}
 
 InventoryInfo VendorClient::InquireInventoryInfo (uint32_t food_id) {
   FoodID request;
   request.set_food_id(food_id);
-  
   InventoryInfo info;
-  
   ClientContext context;
   
   Status status = vendor_stub_->CheckInventory(&context, request, &info);
@@ -80,38 +74,51 @@ InventoryInfo VendorClient::InquireInventoryInfo (uint32_t food_id) {
   }
 }
 
-vector<VendorInfo> SupplierClient::InquireVendorInfo (uint32_t food_id) {
-  FoodID request;
-  request.set_food_id(food_id);
-  
-  VendorInfo reply;
-  vector<VendorInfo> info;
-  
-  ClientContext context;
-  std::unique_ptr<ClientReader<VendorInfo>> reader(supplier_stub_->CheckVendor(&context, request));
+SupplierClient::SupplierClient(std::shared_ptr<grpc::Channel> supplier_channel): 
+                               supplier_stub_(supplyfinder::Supplier::NewStub(supplier_channel)) {}
 
-  while (reader->Read(&reply)) {
-    info.push_back(reply);
+SupplierClient::~SupplierClient() {
+  reader_.reset();
+  supplier_stub_.reset();
+}
+
+void SupplierClient::InitReader (ClientContext* context_ptr, FoodID& request) {
+  // Release previous reader
+  reader_.reset();
+  // Use the context and request on stack to create new reader
+  // The context and request will be released when ProcessRequest
+  // exits
+  reader_ = supplier_stub_->CheckVendor(context_ptr, request);
+}
+
+bool SupplierClient::GetVendorInfo (VendorInfo* reply) {
+  /* 
+   * use the saved client reader to get one vendor. 
+   * return true if successfully get one vendor info.
+   */
+  if (reader_->Read(reply)) {
+    return true;
   }
 
-  Status status = reader->Finish();
+  Status status = reader_->Finish();
   
   if (status.ok()) {
-    return info;
+    return false;
   } else {
     std::cout << status.error_code() << ": " << status.error_message()
               << std::endl;
-    return info;
+    return false;
   }
 }
 
+FinderServiceImpl::FinderServiceImpl(std::string supplier_target_str): 
+                  supplier_client_(grpc::CreateChannel(supplier_target_str, grpc::InsecureChannelCredentials())) {}
+
 void FinderServiceImpl::PrintVendorInfo (const uint32_t id, 
-                                         const vector<VendorInfo>& info) {
-  std::cout << "The following vendors might have food ID " << id << std::endl;
-  for (auto& i : info) {
-    std::cout << "\tVendor url: " << i.url() << "; name: " << i.name()
-      << "; location: " << i.location() << std::endl;
-  }
+                                         const VendorInfo& info) {
+  std::cout << "This vendor might have food " << id << std::endl;
+  std::cout << "\tVendor url: " << info.url() << "; name: " << info.name()
+      << "; location: " << info.location() << std::endl;
 }
 
 vector<ShopInfo> FinderServiceImpl::ProcessRequest(uint32_t food_id) {
@@ -121,14 +128,16 @@ vector<ShopInfo> FinderServiceImpl::ProcessRequest(uint32_t food_id) {
    * return a vector of <Vendor Info, Inventory Info>
    */
   vector<ShopInfo> result;
-        
-  vector<VendorInfo> vendor_info = supplier_client_.InquireVendorInfo(food_id);
+  VendorInfo vendor_info;
+  ClientContext context;
+  FoodID request;
+  request.set_food_id(food_id);
+  supplier_client_.InitReader(&context, request);
   
-  FinderServiceImpl::PrintVendorInfo(food_id, vendor_info);
-  
-  for (const auto& vendor : vendor_info) {
+  while (supplier_client_.GetVendorInfo(&vendor_info)) {
     // if never connected before, create a new client.
-    const string& url = vendor.url();
+    FinderServiceImpl::PrintVendorInfo(food_id, vendor_info);
+    const string& url = vendor_info.url();
     if (vendor_clients_.find(url) == vendor_clients_.end())
       vendor_clients_.emplace(url,
                              VendorClient(grpc::CreateChannel(url, grpc::InsecureChannelCredentials())));
@@ -142,7 +151,7 @@ vector<ShopInfo> FinderServiceImpl::ProcessRequest(uint32_t food_id) {
       ShopInfo info;
       VendorInfo* v_ptr = info.mutable_vendor();
       InventoryInfo* i_ptr = info.mutable_inventory();
-      *v_ptr = vendor;
+      *v_ptr = vendor_info;
       *i_ptr = inventory_info;
       result.push_back(info);
     }
