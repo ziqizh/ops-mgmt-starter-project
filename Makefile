@@ -41,6 +41,7 @@ vpath %.proto $(PROTOS_PATH)
 all: system-check supplyfinder-client supplyfinder-finder supplyfinder-supplier supplyfinder-vendor
 # greeter_async_client greeter_async_client2 greeter_async_server
 
+<<<<<<< HEAD
 supplyfinder-client: supplyfinder.pb.o supplyfinder.grpc.pb.o client/client.o
 	$(CXX) $^ $(LDFLAGS) -o $@
 
