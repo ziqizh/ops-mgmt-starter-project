@@ -120,7 +120,7 @@ int main(int argc, char** argv) {
               << std::endl;
     return 0;
   } else {
-    target_str = "localhost:50051";
+    target_str = "0.0.0.0:50051";
   }
 
   // Test

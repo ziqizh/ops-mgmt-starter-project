@@ -2,10 +2,10 @@ FROM grpc/cxx:1.12.0
 
 WORKDIR /data
 
-COPY finder/finder.* ./server/
+COPY client/client.* ./client/
 COPY proto/supplyfinder.proto ./proto/
 COPY Makefile ./
 
-RUN make finder && make clean
+RUN make supplyfinder-client && make clean
 
-CMD ["./greeter-server"]
+CMD ["./supplyfinder-client"]

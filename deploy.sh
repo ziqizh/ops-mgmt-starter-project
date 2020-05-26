@@ -23,6 +23,32 @@ function die {
   exit 1
 }
 
+function build_images {
+  docker build -t supplyfinder-finder -f finder/Dockerfile .
+  docker build -t supplyfinder-client -f client/Dockerfile .
+  docker build -t supplyfinder-supplier -f supplier/Dockerfile .
+  docker build -t supplyfinder-vendor -f vendor/Dockerfile .
+}
+
+function run_finder {
+  docker run --rm -p 50051:50051 --network=host --name supplyfinder-finder supplyfinder-finder
+}
+
+function run_supplier {
+  docker run --rm -p 50052:50052 --network=host --name supplyfinder-supplier supplyfinder-supplier
+}
+
+function run_vendor {
+  docker run --rm -p 50053:50053 --network=host --name supplyfinder-vendor supplyfinder-vendor 
+}
+
+function run_client {
+  docker run --rm --network=host supplyfinder-client ./supplyfinder-client
+}
+
+
+  
+
 function push_image {
   local target=$1
 
@@ -88,9 +114,9 @@ echo "PROJECT_ID set to cal-intern-project"
 export PROJECT_ID=cal-intern-project
 fi
 
-if [[ ! "$1" =~ ^(create|delete|update_config|update_server|push_client|create_pb|deploy_endpoints)$ ]]; then
-  die "Usage: $0 {create|delete|update_config|update_server|push_client}"
-fi
+# if [[ ! "$1" =~ ^(create|delete|update_config|update_server|push_client|create_pb|deploy_endpoints|build_images|run_images)$ ]]; then
+#   die "Usage: $0 {create|delete|update_config|update_server|push_client}"
+# fi
 
 # call arguments verbatim:
 "$@"

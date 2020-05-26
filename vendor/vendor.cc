@@ -92,12 +92,22 @@ void RunServer(std::string addr) {
 }
 
 int main(int argc, char** argv) {
+  // if (argc < 2) {
+  //   std::cout << "Usage: " << argv[0] << " [PORT]" << std::endl;
+  //   return 1;
+  // }
+  // std::string addr = "0.0.0.0:" + std::string(argv[1]);
+  // std::cout << "Running " << addr << std::endl;
+  // RunServer(addr);
+
+
   int server_number = 4;
   int base_port = 50053;
+
   std::vector<std::thread> threads;
   for (int i = 0; i < server_number; i++) {
     int port = base_port + i;
-    std::string addr = "localhost:" + std::to_string(port);
+    std::string addr = "0.0.0.0:" + std::to_string(port);
     std::cout << "Running " << addr << std::endl;
     threads.emplace_back(RunServer, addr);
   }
