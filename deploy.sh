@@ -43,7 +43,7 @@ function run_vendor {
 }
 
 function run_client {
-  docker run --rm --network=host supplyfinder-client ./supplyfinder-client
+  docker run --rm --network=host --name supplyfinder-client supplyfinder-client ./supplyfinder-client
 }
 
 
