@@ -40,9 +40,9 @@ class SupplierClient {
    */
   public:
     SupplierClient(std::shared_ptr<grpc::Channel>);
-    ~SupplierClient();
     bool GetVendorInfo (supplyfinder::VendorInfo* vendor_info);
-    void InitReader (grpc::ClientContext*, supplyfinder::FoodID&);
+    std::unique_ptr<grpc::ClientReader<supplyfinder::VendorInfo>>& InitReader (
+      grpc::ClientContext*, supplyfinder::FoodID&);
   private: 
     std::unique_ptr<supplyfinder::Supplier::Stub> supplier_stub_;
     std::unique_ptr<grpc::ClientReader<supplyfinder::VendorInfo>> reader_;
