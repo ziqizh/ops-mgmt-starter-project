@@ -9,3 +9,4 @@ cmake/
 cmake_externalproject
 cocoapods
 .vscode/
+supplyfinder-*

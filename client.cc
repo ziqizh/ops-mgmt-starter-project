@@ -16,14 +16,14 @@
  *
  */
 
+#include <grpcpp/grpcpp.h>
+
+#include <cstdint>
 #include <iostream>
 #include <memory>
 #include <string>
-#include <cstdint>
 #include <utility>
 #include <vector>
-
-#include <grpcpp/grpcpp.h>
 
 #include "finder_server.h"
 
@@ -33,67 +33,70 @@
 #include "supplyfinder.grpc.pb.h"
 #endif
 
-using std::vector;
-using std::pair;
 using grpc::Channel;
 using grpc::ClientContext;
 using grpc::ClientReader;
 using grpc::Status;
-using supplyfinder::FoodID;
+using std::pair;
+using std::vector;
 using supplyfinder::Finder;
-using supplyfinder::Request;
-using supplyfinder::VendorInfo;
-using supplyfinder::Vendor;
-using supplyfinder::Supplier;
-using supplyfinder::ShopInfo;
+using supplyfinder::FinderRequest;
+using supplyfinder::FoodID;
 using supplyfinder::InventoryInfo;
+using supplyfinder::ShopInfo;
+using supplyfinder::Supplier;
+using supplyfinder::Vendor;
+using supplyfinder::VendorInfo;
 
-void PrintResult (const ShopInfo& p) {
-  std::cout << "\tVendor url: " << p.vendor().url() << "; name: " << p.vendor().name()
-    << "; location: " << p.vendor().location() << std::endl;
-  std::cout << "\tInventory price: " << p.inventory().price() << "; quantity: "
-    << p.inventory().quantity() << "\n\n";
+void PrintResult(const ShopInfo& p) {
+  std::cout << "\tVendor url: " << p.vendor().url()
+            << "; name: " << p.vendor().name()
+            << "; location: " << p.vendor().location() << std::endl;
+  std::cout << "\tInventory price: " << p.inventory().price()
+            << "; quantity: " << p.inventory().quantity() << "\n\n";
 }
 
 class FinderClient {
-  public:
-    FinderClient(std::shared_ptr<Channel> channel):
-      stub_(Finder::NewStub(channel)) {}
-    
-    void InquireFoodInfo (uint32_t food_id, uint32_t quantity) {
-      Request request;
-      request.set_food_id(food_id);
-      request.set_quantity(quantity);
-      ShopInfo reply;
-      ClientContext context;
-      std::unique_ptr<ClientReader<ShopInfo>> reader(stub_->CheckFood(&context, request));
+ public:
+  FinderClient(std::shared_ptr<Channel> channel)
+      : stub_(Finder::NewStub(channel)) {}
 
-      std::cout << "Receiving Shop Information\n";
-      while (reader->Read(&reply)) {
-        PrintResult(reply);
-      }
+  void InquireFoodInfo(std::string& food_name, uint32_t quantity) {
+    FinderRequest request;
+    request.set_food_name(food_name);
+    request.set_quantity(quantity);
+    ShopInfo reply;
+    ClientContext context;
+    std::unique_ptr<ClientReader<ShopInfo>> reader(
+        stub_->CheckFood(&context, request));
 
-      Status status = reader->Finish();
-      if (!status.ok()) {
-        std::cout << status.error_code() << ": " << status.error_message()
-                    << std::endl;
-      }
+    std::cout << "Receiving Shop Information\n";
+    while (reader->Read(&reply)) {
+      PrintResult(reply);
     }
-  private:
-    std::unique_ptr<Finder::Stub> stub_;
+
+    Status status = reader->Finish();
+    if (!status.ok()) {
+      std::cout << status.error_code() << ": " << status.error_message()
+                << std::endl;
+    }
+  }
+
+ private:
+  std::unique_ptr<Finder::Stub> stub_;
 };
 
-void ProcessRequest(const std::string& target_str, 
-    uint32_t food_id, uint32_t quantity) {
+void ProcessRequest(const std::string& target_str, std::string& food_name,
+                    uint32_t quantity) {
   /*
    * Initiate client with supplier channel. Retrieve a list of vendor address
    * Then create client
    * return a vector of <Vendor Info, Inventory Info>
    */
-  
-  FinderClient client(grpc::CreateChannel(
-    target_str, grpc::InsecureChannelCredentials()));
-  client.InquireFoodInfo(food_id, quantity);
+
+  FinderClient client(
+      grpc::CreateChannel(target_str, grpc::InsecureChannelCredentials()));
+  client.InquireFoodInfo(food_name, quantity);
 }
 
 int main(int argc, char** argv) {
@@ -108,7 +111,8 @@ int main(int argc, char** argv) {
       if (arg_val[start_pos] == '=') {
         target_str = arg_val.substr(start_pos + 1);
       } else {
-        std::cout << "The only correct argument syntax is --target=" << std::endl;
+        std::cout << "The only correct argument syntax is --target="
+                  << std::endl;
         return 0;
       }
     } else {
@@ -118,12 +122,27 @@ int main(int argc, char** argv) {
   } else {
     target_str = "localhost:50051";
   }
-  
+
   // Test
-  for (int i = 0; i < 3; i++) {
-    std::cout << "========== Querying FoodID = " << i << " Quantity = 50 ==========" << std::endl;
-    ProcessRequest(target_str, i, 50);
-  }
-  
+  std::string food_name = "flour";
+  std::cout << "========== Querying Food: " << food_name
+            << " Quantity = 50 ==========" << std::endl;
+  ProcessRequest(target_str, food_name, 50);
+
+  food_name = "egg";
+  std::cout << "========== Querying Food: " << food_name
+            << " Quantity = 50 ==========" << std::endl;
+  ProcessRequest(target_str, food_name, 50);
+
+  food_name = "milk";
+  std::cout << "========== Querying Food: " << food_name
+            << " Quantity = 50 ==========" << std::endl;
+  ProcessRequest(target_str, food_name, 50);
+
+  food_name = "quail";
+  std::cout << "========== Querying Food: " << food_name
+            << " Quantity = 50 ==========" << std::endl;
+  ProcessRequest(target_str, food_name, 50);
+
   return 0;
 }

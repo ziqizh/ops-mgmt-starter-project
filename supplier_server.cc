@@ -28,32 +28,32 @@ using supplyfinder::FoodID;
 using supplyfinder::Supplier;
 using supplyfinder::VendorInfo;
 
+VendorInfo CreateVendor(std::string url, std::string name, std::string location) {
+  VendorInfo vendor;
+  vendor.set_url(url);
+  vendor.set_name(name);
+  vendor.set_location(location);
+  return vendor;
+}
+
 // Logic and data behind the server's behavior.
 class SupplierServiceImpl final : public Supplier::Service {
  private:
   // DB maintains a mapping ID -> vector<VendorInfo>.
   // Stores instance of VendorInfo for simplicity. May cause data redundency.
-  std::unordered_map<uint32_t, vector<VendorInfo*>> vendor_db;
+  std::unordered_map<uint32_t, vector<VendorInfo*>> vendor_db_;
   VendorInfo vendor[4];
 
  public:
   SupplierServiceImpl() {
-    vendor[0].set_url("localhost:50053");
-    vendor[0].set_name("Kroger");
-    vendor[0].set_location("Ann Arbor, MI");
-    vendor[1].set_url("localhost:50054");
-    vendor[1].set_name("Trader Joes");
-    vendor[1].set_location("Pittsburgh, PA");
-    vendor[2].set_url("localhost:50055");
-    vendor[2].set_name("Walmart");
-    vendor[2].set_location("Beijing, CN");
-    vendor[3].set_url("localhost:50056");
-    vendor[3].set_name("Costco");
-    vendor[3].set_location("Rochester, NY");
+    vendor[0] = CreateVendor("localhost:50053", "Kroger", "Ann Arbor, MI");
+    vendor[1] = CreateVendor("localhost:50054", "Trader Joes", "Pittsburgh, PA");
+    vendor[2] = CreateVendor("localhost:50055", "Walmart", "Beijing, CN");
+    vendor[3] = CreateVendor("localhost:50056", "Costco", "Rochester, NY");
 
     for (int i = 0; i < 10; i++) {
       for (int j = 0; j < 4; j++) {
-        vendor_db[i].push_back(&vendor[j]);
+        vendor_db_[i].push_back(&vendor[j]);
       }
     }
   }
@@ -62,11 +62,12 @@ class SupplierServiceImpl final : public Supplier::Service {
                      ServerWriter<VendorInfo>* writer) override {
     std::cout << "supplier server received id: " << request->food_id()
               << std::endl;
-    if (vendor_db.find(request->food_id()) == vendor_db.end()) {
+    uint32_t food_id = request->food_id();
+    auto vendors = vendor_db_.find(request->food_id());
+    if (vendors == vendor_db_.end()) {
       return Status(StatusCode::NOT_FOUND, "Food ID not found.");
-      ;
     }
-    for (const auto vendor : vendor_db[request->food_id()]) {
+    for (const auto vendor : vendors->second) {
       writer->Write(*vendor);
     }
     return Status::OK;

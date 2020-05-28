@@ -48,24 +48,25 @@ class VendorServiceImpl final : public Vendor::Service {
       uint32_t quantity = rand() % 100;
       inv.set_price(price);
       inv.set_quantity(quantity);
-      inventory_db[idx] = inv;
+      inventory_db_[idx] = inv;
     }
   }
 
   Status CheckInventory(ServerContext* context, const FoodID* request,
                         InventoryInfo* info) {
     uint32_t food_id = request->food_id();
-    if (inventory_db.find(food_id) == inventory_db.end()) {
+    auto inventory = inventory_db_.find(food_id);
+    if (inventory == inventory_db_.end()) {
       Status status(StatusCode::NOT_FOUND, "Food ID not found.");
       return status;
     }
-    info->set_price(inventory_db[food_id].price());
-    info->set_quantity(inventory_db[food_id].quantity());
+    info->set_price(inventory->second.price());
+    info->set_quantity(inventory->second.quantity());
     return Status::OK;
   }
 
  private:
-  std::unordered_map<uint32_t, InventoryInfo> inventory_db;
+  std::unordered_map<uint32_t, InventoryInfo> inventory_db_;
 };
 
 void RunServer(std::string addr) {

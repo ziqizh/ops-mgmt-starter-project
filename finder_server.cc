@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cctype>
 #include <cstdint>
 #include <iostream>
 #include <memory>
@@ -26,22 +27,28 @@ using std::pair;
 using std::string;
 using std::vector;
 using supplyfinder::Finder;
+using supplyfinder::FinderRequest;
 using supplyfinder::FoodID;
 using supplyfinder::InventoryInfo;
-using supplyfinder::Request;
 using supplyfinder::ShopInfo;
 using supplyfinder::Supplier;
 using supplyfinder::Vendor;
 using supplyfinder::VendorInfo;
 
 Status FinderServiceImpl::CheckFood(ServerContext* context,
-                                    const Request* request,
+                                    const FinderRequest* request,
                                     ServerWriter<ShopInfo>* writer) {
-  std::cout << "========== Receving Request Food Id=" << request->food_id()
+  std::cout << "========== Receving Request Food: " << request->food_name()
             << " ==========" << std::endl;
 
-  vector<ShopInfo> result = ProcessRequest(request->food_id());
+  vector<ShopInfo> result = ProcessRequest(request->food_name());
   long quantity = request->quantity();
+
+  if (result.empty()) {
+    Status status(StatusCode::NOT_FOUND,
+                  "Food " + request->food_name() + " not found.");
+    return status;
+  }
 
   std::sort(result.begin(), result.end(), Comp());
 
@@ -90,7 +97,11 @@ std::unique_ptr<ClientReader<VendorInfo>>& SupplierClient::InitReader(
 
 FinderServiceImpl::FinderServiceImpl(std::string supplier_target_str)
     : supplier_client_(grpc::CreateChannel(
-          supplier_target_str, grpc::InsecureChannelCredentials())) {}
+          supplier_target_str, grpc::InsecureChannelCredentials())) {
+  vector<string> food_names = {"apple", "egg",   "milk",
+                               "flour", "water", "butter"};
+  InitFoodID(food_names);
+}
 
 void FinderServiceImpl::PrintVendorInfo(const uint32_t id,
                                         const VendorInfo& info) {
@@ -99,7 +110,26 @@ void FinderServiceImpl::PrintVendorInfo(const uint32_t id,
             << "; location: " << info.location() << std::endl;
 }
 
-vector<ShopInfo> FinderServiceImpl::ProcessRequest(uint32_t food_id) {
+long FinderServiceImpl::GetFoodID(const string& food_name) {
+  // convert food name to lowercase, then look up
+  string name_lowercase = food_name;
+  transform(name_lowercase.begin(), name_lowercase.end(), name_lowercase.begin(),
+            [](unsigned char c) { return std::tolower(c); });
+  auto it = food_id_.find(name_lowercase);
+  if (it == food_id_.end()) {
+    return -1;
+  }
+  return it->second;
+}
+
+void FinderServiceImpl::InitFoodID(vector<string>& food_names) {
+  int idx = 0;
+  for (const string& name : food_names) {
+    food_id_[name] = idx++;
+  }
+}
+
+vector<ShopInfo> FinderServiceImpl::ProcessRequest(const string& food_name) {
   /*
    * Initiate client with supplier channel. Retrieve a list of vendor address
    * Then create client
@@ -109,6 +139,12 @@ vector<ShopInfo> FinderServiceImpl::ProcessRequest(uint32_t food_id) {
   VendorInfo vendor_info;
   ClientContext context;
   FoodID request;
+  long food_id = GetFoodID(food_name);
+  if (food_id < 0) {
+    // if no corresponding food id, return empty vector
+    std::cout << "Food " << food_name << " cannot be found." << std::endl;
+    return result;
+  }
   request.set_food_id(food_id);
   std::unique_ptr<ClientReader<VendorInfo>>& reader =
       supplier_client_.InitReader(&context, request);
