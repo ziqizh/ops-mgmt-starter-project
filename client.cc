@@ -119,6 +119,10 @@ int main(int argc, char** argv) {
       std::cout << "The only acceptable argument is --target=" << std::endl;
       return 0;
     }
+  } else if (argc > 2) {
+    std::cout << "Too much arguments: The only acceptable argument is --target="
+              << std::endl;
+    return 0;
   } else {
     target_str = "localhost:50051";
   }

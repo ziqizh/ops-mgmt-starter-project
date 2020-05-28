@@ -113,7 +113,8 @@ void FinderServiceImpl::PrintVendorInfo(const uint32_t id,
 long FinderServiceImpl::GetFoodID(const string& food_name) {
   // convert food name to lowercase, then look up
   string name_lowercase = food_name;
-  transform(name_lowercase.begin(), name_lowercase.end(), name_lowercase.begin(),
+  transform(name_lowercase.begin(), name_lowercase.end(),
+            name_lowercase.begin(),
             [](unsigned char c) { return std::tolower(c); });
   auto it = food_id_.find(name_lowercase);
   if (it == food_id_.end()) {
@@ -153,11 +154,13 @@ vector<ShopInfo> FinderServiceImpl::ProcessRequest(const string& food_name) {
     // if never connected before, create a new client.
     FinderServiceImpl::PrintVendorInfo(food_id, vendor_info);
     const string& url = vendor_info.url();
-    if (vendor_clients_.find(url) == vendor_clients_.end())
-      vendor_clients_.emplace(url,
-                              VendorClient(grpc::CreateChannel(
-                                  url, grpc::InsecureChannelCredentials())));
     auto client = vendor_clients_.find(url);
+    if (client == vendor_clients_.end()) {
+      auto element = vendor_clients_.emplace(
+          url, VendorClient(grpc::CreateChannel(
+                   url, grpc::InsecureChannelCredentials())));
+      client = element.first;  // assign the newly created client iterator
+    }
 
     InventoryInfo inventory_info = client->second.InquireInventoryInfo(food_id);
     // error checking: if no inventory, price == -1
@@ -166,10 +169,8 @@ vector<ShopInfo> FinderServiceImpl::ProcessRequest(const string& food_name) {
                 << std::endl;
     else {
       ShopInfo info;
-      VendorInfo* v_ptr = info.mutable_vendor();
-      InventoryInfo* i_ptr = info.mutable_inventory();
-      *v_ptr = vendor_info;
-      *i_ptr = inventory_info;
+      *info.mutable_vendor() = vendor_info;
+      *info.mutable_inventory() = inventory_info;
       result.push_back(info);
     }
   }
@@ -237,6 +238,10 @@ int main(int argc, char** argv) {
       std::cout << "The only acceptable argument is --target=" << std::endl;
       return 0;
     }
+  } else if (argc > 2) {
+    std::cout << "Too much arguments: The only acceptable argument is --target="
+              << std::endl;
+    return 0;
   } else {
     supplier_target_str = "localhost:50052";
   }
