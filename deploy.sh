@@ -24,10 +24,10 @@ function die {
 }
 
 function build_images {
-  docker build -t supplyfinder-finder -f finder/Dockerfile .
-  docker build -t supplyfinder-client -f client/Dockerfile .
-  docker build -t supplyfinder-supplier -f supplier/Dockerfile .
-  docker build -t supplyfinder-vendor -f vendor/Dockerfile .
+  push_image client
+  push_image finder
+  push_image supplier
+  push_image vendor
 }
 
 function run_finder {
@@ -43,11 +43,8 @@ function run_vendor {
 }
 
 function run_client {
-  docker run --rm --network=host --name supplyfinder-client supplyfinder-client ./supplyfinder-client
+  docker run --rm --network=host --name supplyfinder-client supplyfinder-client supplyfinder-client
 }
-
-
-  
 
 function push_image {
   local target=$1
@@ -79,7 +76,7 @@ function delete_api {
 }
 
 function update_config {
-  kubectl apply -f greeter-server.yaml
+  kubectl apply -f grpc-supplyfinder.yaml
 }
 
 function update_server {

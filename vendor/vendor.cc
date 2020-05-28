@@ -101,7 +101,7 @@ int main(int argc, char** argv) {
   // RunServer(addr);
 
 
-  int server_number = 4;
+  int server_number = 1;
   int base_port = 50053;
 
   std::vector<std::thread> threads;

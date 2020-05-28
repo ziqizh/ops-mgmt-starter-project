@@ -8,4 +8,4 @@ COPY Makefile ./
 
 RUN make supplyfinder-finder && make clean
 
-CMD ["./supplyfinder-finder"]
+CMD ["./supplyfinder-finder --target=34.72.6.187:50052"]
