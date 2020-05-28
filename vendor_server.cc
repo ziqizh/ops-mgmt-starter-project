@@ -1,18 +1,18 @@
-#include <iostream>
-#include <memory>
-#include <string>
-#include <unordered_map>
-#include <cstdint>
-#include <thread>
-#include <vector>
-#include <stdlib.h> 
-#include <random>
-#include <algorithm>
-#include <iterator>
-
+#include <grpcpp/ext/proto_server_reflection_plugin.h>
 #include <grpcpp/grpcpp.h>
 #include <grpcpp/health_check_service_interface.h>
-#include <grpcpp/ext/proto_server_reflection_plugin.h>
+#include <stdlib.h>
+
+#include <algorithm>
+#include <cstdint>
+#include <iostream>
+#include <iterator>
+#include <memory>
+#include <random>
+#include <string>
+#include <thread>
+#include <unordered_map>
+#include <vector>
 
 #ifdef BAZEL_BUILD
 #include "examples/protos/supplyfinder.grpc.pb.h"
@@ -25,47 +25,47 @@ using grpc::ServerBuilder;
 using grpc::ServerContext;
 using grpc::Status;
 using grpc::StatusCode;
-using supplyfinder::Vendor;
 using supplyfinder::FoodID;
 using supplyfinder::InventoryInfo;
+using supplyfinder::Vendor;
 
 // Logic and data behind the server's behavior.
 class VendorServiceImpl final : public Vendor::Service {
-  public:
-    VendorServiceImpl () {
-      /*
-      * Randomly generate inventory information
-      * Each vendor has five items, with price [0, 20.0] and quantity [0, 99]
-      */
-      std::vector<int> indices = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
-      std::random_device rd;
-      std::mt19937 g(rd());
-      std::shuffle(indices.begin(), indices.end(), g);
-      InventoryInfo inv;
-      for (int i = 0; i < 5; i++) {
-      
-        int idx = indices[i];
-        double price = rand() % 200 / 10.0;
-        uint32_t quantity = rand() % 100;
-        inv.set_price(price);
-        inv.set_quantity(quantity);
-        inventory_db[idx] = inv;
-      }
+ public:
+  VendorServiceImpl() {
+    /*
+     * Randomly generate inventory information
+     * Each vendor has five items, with price [0, 20.0] and quantity [0, 99]
+     */
+    std::vector<int> indices = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+    std::random_device rd;
+    std::mt19937 g(rd());
+    std::shuffle(indices.begin(), indices.end(), g);
+    InventoryInfo inv;
+    for (int i = 0; i < 5; i++) {
+      int idx = indices[i];
+      double price = rand() % 200 / 10.0;
+      uint32_t quantity = rand() % 100;
+      inv.set_price(price);
+      inv.set_quantity(quantity);
+      inventory_db[idx] = inv;
     }
-  
-    Status CheckInventory (ServerContext* context, const FoodID* request,
-                           InventoryInfo* info) {
-      uint32_t food_id = request->food_id();
-      if (inventory_db.find(food_id) == inventory_db.end()) {
-        Status status(StatusCode::NOT_FOUND, "Food ID not found.");
-        return status;
-      }
-      info->set_price(inventory_db[food_id].price());
-      info->set_quantity(inventory_db[food_id].quantity());
-      return Status::OK;
+  }
+
+  Status CheckInventory(ServerContext* context, const FoodID* request,
+                        InventoryInfo* info) {
+    uint32_t food_id = request->food_id();
+    if (inventory_db.find(food_id) == inventory_db.end()) {
+      Status status(StatusCode::NOT_FOUND, "Food ID not found.");
+      return status;
     }
-  private:
-    std::unordered_map<uint32_t, InventoryInfo> inventory_db;
+    info->set_price(inventory_db[food_id].price());
+    info->set_quantity(inventory_db[food_id].quantity());
+    return Status::OK;
+  }
+
+ private:
+  std::unordered_map<uint32_t, InventoryInfo> inventory_db;
 };
 
 void RunServer(std::string addr) {
@@ -87,7 +87,7 @@ void RunServer(std::string addr) {
   // Wait for the server to shutdown. Note that some other thread must be
   // responsible for shutting down the server for this call to ever return.
   server->Wait();
-} 
+}
 
 int main(int argc, char** argv) {
   int server_number = 4;
@@ -99,11 +99,11 @@ int main(int argc, char** argv) {
     std::cout << "Running " << addr << std::endl;
     threads.emplace_back(RunServer, addr);
   }
-  
+
   for (auto& t : threads) {
     t.join();
   }
-  
+
   threads.clear();
   return 0;
 }
