@@ -73,6 +73,8 @@ class FinderServiceImpl final : public supplyfinder::Finder::Service {
  private:
   void InitFoodID(std::vector<std::string>&);
   SupplierClient supplier_client_;
+  // maps server address to the client instance
   std::unordered_map<std::string, VendorClient> vendor_clients_;
-  std::unordered_map<std::string, uint32_t> food_id_; // maps food name to food id
+   // maps food name to food id
+  std::unordered_map<std::string, uint32_t> food_id_;
 };

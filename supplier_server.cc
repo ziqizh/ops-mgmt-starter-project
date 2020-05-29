@@ -39,8 +39,8 @@ VendorInfo CreateVendor(std::string url, std::string name, std::string location)
 // Logic and data behind the server's behavior.
 class SupplierServiceImpl final : public Supplier::Service {
  private:
-  // DB maintains a mapping ID -> vector<VendorInfo>.
-  // Stores instance of VendorInfo for simplicity. May cause data redundency.
+  // DB maintains a mapping ID -> vector<VendorInfo*>.
+  // Stores pointers to VendorInfos, which are stored in an array
   std::unordered_map<uint32_t, vector<VendorInfo*>> vendor_db_;
   VendorInfo vendor[4];
 

@@ -66,6 +66,7 @@ class VendorServiceImpl final : public Vendor::Service {
   }
 
  private:
+  // Maps food ID to inventory information
   std::unordered_map<uint32_t, InventoryInfo> inventory_db_;
 };
 
