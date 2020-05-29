@@ -38,16 +38,19 @@ PROTOS_PATH = ./proto
 
 vpath %.proto $(PROTOS_PATH)
 
-all: system-check client supplier_server vendor_server
+all: system-check supplyfinder-client supplyfinder-finder supplyfinder-supplier supplyfinder-vendor
 # greeter_async_client greeter_async_client2 greeter_async_server
 
-client: supplyfinder.pb.o supplyfinder.grpc.pb.o client.o
+supplyfinder-client: supplyfinder.pb.o supplyfinder.grpc.pb.o client.o
 	$(CXX) $^ $(LDFLAGS) -o $@
 
-supplier_server: supplyfinder.pb.o supplyfinder.grpc.pb.o supplier_server.o
+supplyfinder-finder: supplyfinder.pb.o supplyfinder.grpc.pb.o finder_server.o
 	$(CXX) $^ $(LDFLAGS) -o $@
 
-vendor_server: supplyfinder.pb.o supplyfinder.grpc.pb.o vendor_server.o
+supplyfinder-supplier: supplyfinder.pb.o supplyfinder.grpc.pb.o supplier_server.o
+	$(CXX) $^ $(LDFLAGS) -o $@
+
+supplyfinder-vendor: supplyfinder.pb.o supplyfinder.grpc.pb.o vendor_server.o
 	$(CXX) $^ $(LDFLAGS) -o $@
 
 .PRECIOUS: %.grpc.pb.cc
@@ -59,7 +62,7 @@ vendor_server: supplyfinder.pb.o supplyfinder.grpc.pb.o vendor_server.o
 	$(PROTOC) -I $(PROTOS_PATH) --cpp_out=. $<
 
 clean:
-	rm -f *.o *.pb.cc *.pb.h client supplier_server vendor_server
+	rm -f *.o *.pb.cc *.pb.h client finder_server supplier_server vendor_server
 
 
 # The following is to test your system and ensure a smoother experience.

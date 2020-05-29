@@ -1,32 +1,18 @@
-/*
- *
- * Copyright 2015 gRPC authors.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- */
-
-#include <iostream>
-#include <memory>
-#include <string>
-#include <unordered_map>
-#include <cstdint>
-#include <thread>
-#include <vector>
-
+#include <grpcpp/ext/proto_server_reflection_plugin.h>
 #include <grpcpp/grpcpp.h>
 #include <grpcpp/health_check_service_interface.h>
-#include <grpcpp/ext/proto_server_reflection_plugin.h>
+#include <stdlib.h>
+
+#include <algorithm>
+#include <cstdint>
+#include <iostream>
+#include <iterator>
+#include <memory>
+#include <random>
+#include <string>
+#include <thread>
+#include <unordered_map>
+#include <vector>
 
 #ifdef BAZEL_BUILD
 #include "examples/protos/supplyfinder.grpc.pb.h"
@@ -39,49 +25,49 @@ using grpc::ServerBuilder;
 using grpc::ServerContext;
 using grpc::Status;
 using grpc::StatusCode;
-using supplyfinder::HelloRequest;
-using supplyfinder::HelloReply;
-using supplyfinder::Vendor;
 using supplyfinder::FoodID;
 using supplyfinder::InventoryInfo;
+using supplyfinder::Vendor;
 
 // Logic and data behind the server's behavior.
 class VendorServiceImpl final : public Vendor::Service {
-  public:
-  VendorServiceImpl () {
+ public:
+  VendorServiceImpl() {
     /*
-     * Dummy database which contains :
-     * id 1: price 19.5, quantity 10
-     * id 3: price 2.99, quantity 2
+     * Randomly generate inventory information
+     * Each vendor has five items, with price [0, 20.0] and quantity [0, 99]
      */
+    std::vector<int> indices = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+    std::random_device rd;
+    std::mt19937 g(rd());
+    std::shuffle(indices.begin(), indices.end(), g);
     InventoryInfo inv;
-    inv.set_price(19.5);
-    inv.set_quantity(10);
-    inventory_db[1] = inv;
-    inv.set_price(2.99);
-    inv.set_quantity(2);
-    inventory_db[3] = inv;
+    for (int i = 0; i < 5; i++) {
+      int idx = indices[i];
+      double price = rand() % 200 / 10.0;
+      uint32_t quantity = rand() % 100;
+      inv.set_price(price);
+      inv.set_quantity(quantity);
+      inventory_db_[idx] = inv;
+    }
   }
-  Status SayHello(ServerContext* context, const HelloRequest* request,
-                  HelloReply* reply) override {
-    std::string prefix("Hello ");
-    reply->set_message(prefix + request->name());
-    return Status::OK;
-  }
-  
-  Status CheckInventory (ServerContext* context, const FoodID* request,
-                  InventoryInfo* info) {
+
+  Status CheckInventory(ServerContext* context, const FoodID* request,
+                        InventoryInfo* info) {
     uint32_t food_id = request->food_id();
-    if (inventory_db.find(food_id) == inventory_db.end()) {
+    auto inventory = inventory_db_.find(food_id);
+    if (inventory == inventory_db_.end()) {
       Status status(StatusCode::NOT_FOUND, "Food ID not found.");
       return status;
     }
-    info->set_price(inventory_db[food_id].price());
-    info->set_quantity(inventory_db[food_id].quantity());
+    info->set_price(inventory->second.price());
+    info->set_quantity(inventory->second.quantity());
     return Status::OK;
   }
-  private:
-  std::unordered_map<uint32_t, InventoryInfo> inventory_db;
+
+ private:
+  // Maps food ID to inventory information
+  std::unordered_map<uint32_t, InventoryInfo> inventory_db_;
 };
 
 void RunServer(std::string addr) {
@@ -103,11 +89,11 @@ void RunServer(std::string addr) {
   // Wait for the server to shutdown. Note that some other thread must be
   // responsible for shutting down the server for this call to ever return.
   server->Wait();
-} 
+}
 
 int main(int argc, char** argv) {
-  int server_number = 3;
-  int base_port = 50052;
+  int server_number = 4;
+  int base_port = 50053;
   std::vector<std::thread> threads;
   for (int i = 0; i < server_number; i++) {
     int port = base_port + i;
@@ -115,11 +101,11 @@ int main(int argc, char** argv) {
     std::cout << "Running " << addr << std::endl;
     threads.emplace_back(RunServer, addr);
   }
-  
-  for (auto & t : threads) {
+
+  for (auto& t : threads) {
     t.join();
   }
-  
+
   threads.clear();
   return 0;
 }

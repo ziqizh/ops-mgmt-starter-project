@@ -16,14 +16,16 @@
  *
  */
 
+#include <grpcpp/grpcpp.h>
+
+#include <cstdint>
 #include <iostream>
 #include <memory>
 #include <string>
-#include <cstdint>
 #include <utility>
 #include <vector>
 
-#include <grpcpp/grpcpp.h>
+#include "finder_server.h"
 
 #ifdef BAZEL_BUILD
 #include "examples/protos/supplyfinder.grpc.pb.h"
@@ -31,201 +33,120 @@
 #include "supplyfinder.grpc.pb.h"
 #endif
 
-using std::vector;
-using std::pair;
 using grpc::Channel;
 using grpc::ClientContext;
+using grpc::ClientReader;
 using grpc::Status;
-using supplyfinder::HelloRequest;
-using supplyfinder::HelloReply;
+using std::pair;
+using std::vector;
+using supplyfinder::Finder;
+using supplyfinder::FinderRequest;
+using supplyfinder::FoodID;
+using supplyfinder::InventoryInfo;
+using supplyfinder::ShopInfo;
 using supplyfinder::Supplier;
 using supplyfinder::Vendor;
-using supplyfinder::FoodID;
 using supplyfinder::VendorInfo;
-using supplyfinder::InventoryInfo;
 
-class VendorClient {
-  public:
-  VendorClient(std::shared_ptr<Channel> vendor_channel):
-  vendor_stub_(Vendor::NewStub(vendor_channel)) {}
-  
-  std::string SayHelloToVendor(const std::string& user) {
-    // Data we are sending to the server.
-    HelloRequest request;
-    request.set_name(user);
+void PrintResult(const ShopInfo& p) {
+  std::cout << "\tVendor url: " << p.vendor().url()
+            << "; name: " << p.vendor().name()
+            << "; location: " << p.vendor().location() << std::endl;
+  std::cout << "\tInventory price: " << p.inventory().price()
+            << "; quantity: " << p.inventory().quantity() << "\n\n";
+}
 
-    // Container for the data we expect from the server.
-    HelloReply reply;
-
-    // Context for the client. It could be used to convey extra information to
-    // the server and/or tweak certain RPC behaviors.
-    ClientContext context;
-
-    // The actual RPC.
-    Status status = vendor_stub_->SayHello(&context, request, &reply);
-
-    // Act upon its status.
-    if (status.ok()) {
-      return reply.message();
-    } else {
-      std::cout << status.error_code() << ": " << status.error_message()
-                << std::endl;
-      return "RPC failed";
-    }
-  }
-  
-  InventoryInfo InquireInventoryInfo (uint32_t food_id) {
-    FoodID request;
-    request.set_food_id(food_id);
-    
-    InventoryInfo info;
-    
-    ClientContext context;
-    
-    Status status = vendor_stub_->CheckInventory(&context, request, &info);
-    
-    if (status.ok()) {
-      return info;
-    } else {
-      std::cout << status.error_code() << ": " << status.error_message()
-                << std::endl;
-      info.set_price(-1);
-      return info;
-    }
-  }
-  private:
-  std::unique_ptr<Vendor::Stub> vendor_stub_;
-};
-
-class SupplierClient {
+class FinderClient {
  public:
-  SupplierClient(std::shared_ptr<Channel> supplier_channel)
-      : supplier_stub_(Supplier::NewStub(supplier_channel)) {}
+  FinderClient(std::shared_ptr<Channel> channel)
+      : stub_(Finder::NewStub(channel)) {}
 
-  // Assembles the client's payload, sends it and presents the response back
-  // from the server.
-  std::string SayHelloToSupplier(const std::string& user) {
-    // Data we are sending to the server.
-    HelloRequest request;
-    request.set_name(user);
-
-    // Container for the data we expect from the server.
-    HelloReply reply;
-
-    // Context for the client. It could be used to convey extra information to
-    // the server and/or tweak certain RPC behaviors.
+  void InquireFoodInfo(std::string& food_name, uint32_t quantity) {
+    FinderRequest request;
+    request.set_food_name(food_name);
+    request.set_quantity(quantity);
+    ShopInfo reply;
     ClientContext context;
+    std::unique_ptr<ClientReader<ShopInfo>> reader(
+        stub_->CheckFood(&context, request));
 
-    // The actual RPC.
-    Status status = supplier_stub_->SayHello(&context, request, &reply);
+    std::cout << "Receiving Shop Information\n";
+    while (reader->Read(&reply)) {
+      PrintResult(reply);
+    }
 
-    // Act upon its status.
-    if (status.ok()) {
-      return reply.message();
-    } else {
+    Status status = reader->Finish();
+    if (!status.ok()) {
       std::cout << status.error_code() << ": " << status.error_message()
                 << std::endl;
-      return "RPC failed";
     }
   }
-  
-  VendorInfo InquireVendorInfo (uint32_t food_id) {
-    FoodID request;
-    request.set_food_id(food_id);
-    
-    VendorInfo info;
-    
-    ClientContext context;
-    
-    Status status = supplier_stub_->CheckVendor(&context, request, &info);
-    
-    if (status.ok()) {
-      return info;
-    } else {
-      std::cout << status.error_code() << ": " << status.error_message()
-                << std::endl;
-      info.set_url("RPC failed");
-      return info;
-    }
-  }
-  
 
  private:
-  std::unique_ptr<Supplier::Stub> supplier_stub_;
+  std::unique_ptr<Finder::Stub> stub_;
 };
 
-vector<pair<VendorInfo, InventoryInfo>> ProcessRequest(const std::string& supplier_target_str, uint32_t food_id) {
+void ProcessRequest(const std::string& target_str, std::string& food_name,
+                    uint32_t quantity) {
   /*
    * Initiate client with supplier channel. Retrieve a list of vendor address
    * Then create client
    * return a vector of <Vendor Info, Inventory Info>
    */
-  vector<pair<VendorInfo, InventoryInfo>> result;
-  
-  SupplierClient supplier_client(grpc::CreateChannel(
-      supplier_target_str, grpc::InsecureChannelCredentials()));
-      
-  VendorInfo vendor_info = supplier_client.InquireVendorInfo(food_id);
-  
-  std::cout << "Vendor info received: " << vendor_info.url() << std::endl;
-  
-  VendorClient vendor_client(grpc::CreateChannel(
-      vendor_info.url(), grpc::InsecureChannelCredentials()));
-      
-  InventoryInfo inventory_info = vendor_client.InquireInventoryInfo(food_id);
-  
-  // error checking: if no inventory, price == -1
-  if (inventory_info.price() < 0)
-    std::cout << "vendor at " << vendor_info.url() << " doesn't have food " << food_id << std::endl;
-  else
-    result.push_back(std::make_pair(vendor_info, inventory_info));
-  return result;
-}
 
-void PrintResult (const uint32_t id, const vector<pair<VendorInfo, InventoryInfo>>& result) {
-  std::cout << "The food ID is " << id << std::endl;
-  for (auto & p : result) {
-    std::cout << "Vendor url: " << p.first.url() << "; name: " << p.first.name()
-      << "; location: " << p.first.location() << std::endl;
-    std::cout << "Inventory price: " << p.second.price() << "; quantity: " << p.second.quantity()
-      << std::endl;
-  }
+  FinderClient client(
+      grpc::CreateChannel(target_str, grpc::InsecureChannelCredentials()));
+  client.InquireFoodInfo(food_name, quantity);
 }
 
 int main(int argc, char** argv) {
-  // Instantiate the client. It requires a channel, out of which the actual RPCs
-  // are created. This channel models a connection to an endpoint specified by
-  // the argument "--target=" which is the only expected argument.
-  // We indicate that the channel isn't authenticated (use of
-  // InsecureChannelCredentials()).
-  std::string supplier_target_str;
-  std::string arg_str("--target");
+  // Parse Argument
+  std::string target_str;
+  std::string arg_str = "--target";
   if (argc > 1) {
     std::string arg_val = argv[1];
     size_t start_pos = arg_val.find(arg_str);
     if (start_pos != std::string::npos) {
       start_pos += arg_str.size();
       if (arg_val[start_pos] == '=') {
-        supplier_target_str = arg_val.substr(start_pos + 1);
+        target_str = arg_val.substr(start_pos + 1);
       } else {
-        std::cout << "The only correct argument syntax is --target=" << std::endl;
+        std::cout << "The only correct argument syntax is --target="
+                  << std::endl;
         return 0;
       }
     } else {
       std::cout << "The only acceptable argument is --target=" << std::endl;
       return 0;
     }
+  } else if (argc > 2) {
+    std::cout << "Too much arguments: The only acceptable argument is --target="
+              << std::endl;
+    return 0;
   } else {
-    supplier_target_str = "localhost:50051";
+    target_str = "localhost:50051";
   }
-  
-  
-  std::cout << "========== Testing Supplier Server ==========" << std::endl;
-  std::cout << "Querying FoodID = 1" << std::endl;
-  vector<pair<VendorInfo, InventoryInfo>> result = ProcessRequest(supplier_target_str, 1);
-  PrintResult(1, result);
-  
-  
+
+  // Test
+  std::string food_name = "flour";
+  std::cout << "========== Querying Food: " << food_name
+            << " Quantity = 50 ==========" << std::endl;
+  ProcessRequest(target_str, food_name, 50);
+
+  food_name = "egg";
+  std::cout << "========== Querying Food: " << food_name
+            << " Quantity = 50 ==========" << std::endl;
+  ProcessRequest(target_str, food_name, 50);
+
+  food_name = "milk";
+  std::cout << "========== Querying Food: " << food_name
+            << " Quantity = 50 ==========" << std::endl;
+  ProcessRequest(target_str, food_name, 50);
+
+  food_name = "quail";
+  std::cout << "========== Querying Food: " << food_name
+            << " Quantity = 50 ==========" << std::endl;
+  ProcessRequest(target_str, food_name, 50);
 
   return 0;
 }

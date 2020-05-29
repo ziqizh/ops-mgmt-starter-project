@@ -1,30 +1,13 @@
-/*
- *
- * Copyright 2015 gRPC authors.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- */
+#include <grpcpp/ext/proto_server_reflection_plugin.h>
+#include <grpcpp/grpcpp.h>
+#include <grpcpp/health_check_service_interface.h>
 
+#include <cstdint>
 #include <iostream>
 #include <memory>
 #include <string>
 #include <unordered_map>
-#include <cstdint>
-
-#include <grpcpp/grpcpp.h>
-#include <grpcpp/health_check_service_interface.h>
-#include <grpcpp/ext/proto_server_reflection_plugin.h>
+#include <vector>
 
 #ifdef BAZEL_BUILD
 #include "examples/protos/supplyfinder.grpc.pb.h"
@@ -35,50 +18,65 @@
 using grpc::Server;
 using grpc::ServerBuilder;
 using grpc::ServerContext;
+using grpc::ServerReader;
+using grpc::ServerReaderWriter;
+using grpc::ServerWriter;
 using grpc::Status;
 using grpc::StatusCode;
-using supplyfinder::HelloRequest;
-using supplyfinder::HelloReply;
+using std::vector;
 using supplyfinder::FoodID;
-using supplyfinder::VendorInfo;
 using supplyfinder::Supplier;
+using supplyfinder::VendorInfo;
 
-std::unordered_map<uint32_t, VendorInfo> vendor_db;
-
-void InitDB () {
+VendorInfo CreateVendor(std::string url, std::string name, std::string location) {
   VendorInfo vendor;
-  vendor.set_url("localhost:50052");
-  vendor.set_name("Kroger");
-  vendor.set_location("Ann Arbor, MI");
-  vendor_db[1] = vendor;
+  vendor.set_url(url);
+  vendor.set_name(name);
+  vendor.set_location(location);
+  return vendor;
 }
 
 // Logic and data behind the server's behavior.
 class SupplierServiceImpl final : public Supplier::Service {
-  Status SayHello(ServerContext* context, const HelloRequest* request,
-                  HelloReply* reply) override {
-    std::string prefix("Hello ");
-    reply->set_message(prefix + request->name());
-    return Status::OK;
+ private:
+  // DB maintains a mapping ID -> vector<VendorInfo*>.
+  // Stores pointers to VendorInfos, which are stored in an array
+  std::unordered_map<uint32_t, vector<VendorInfo*>> vendor_db_;
+  VendorInfo vendor[4];
+
+ public:
+  SupplierServiceImpl() {
+    vendor[0] = CreateVendor("localhost:50053", "Kroger", "Ann Arbor, MI");
+    vendor[1] = CreateVendor("localhost:50054", "Trader Joes", "Pittsburgh, PA");
+    vendor[2] = CreateVendor("localhost:50055", "Walmart", "Beijing, CN");
+    vendor[3] = CreateVendor("localhost:50056", "Costco", "Rochester, NY");
+
+    for (int i = 0; i < 10; i++) {
+      for (int j = 0; j < 4; j++) {
+        vendor_db_[i].push_back(&vendor[j]);
+      }
+    }
   }
 
   Status CheckVendor(ServerContext* context, const FoodID* request,
-                  VendorInfo* reply) override {
-    std::cout << "supplier server received id: " << request->food_id() << std::endl;
-    if (vendor_db.find(request->food_id()) == vendor_db.end()) {
-      return Status(StatusCode::NOT_FOUND, "Food ID not found.");;
+                     ServerWriter<VendorInfo>* writer) override {
+    std::cout << "supplier server received id: " << request->food_id()
+              << std::endl;
+    uint32_t food_id = request->food_id();
+    auto vendors = vendor_db_.find(request->food_id());
+    if (vendors == vendor_db_.end()) {
+      return Status(StatusCode::NOT_FOUND, "Food ID not found.");
     }
-    reply->set_url(vendor_db[request->food_id()].url());
-    reply->set_name(vendor_db[request->food_id()].name());
-    reply->set_location(vendor_db[request->food_id()].location());
+    for (const auto vendor : vendors->second) {
+      writer->Write(*vendor);
+    }
     return Status::OK;
   }
 };
 
 void RunServer() {
-  std::string server_address("0.0.0.0:50051");
+  std::string server_address = "0.0.0.0:50052";
   SupplierServiceImpl service;
-  // service.InitDB();
 
   grpc::EnableDefaultHealthCheckService(true);
   grpc::reflection::InitProtoReflectionServerBuilderPlugin();
@@ -98,8 +96,6 @@ void RunServer() {
 }
 
 int main(int argc, char** argv) {
-  InitDB();
   RunServer();
-
   return 0;
 }

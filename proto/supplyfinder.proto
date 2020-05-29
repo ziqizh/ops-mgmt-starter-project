@@ -7,32 +7,30 @@ option objc_class_prefix = "SLF";
 
 package supplyfinder;
 
+service Finder {
+  // Receive request from the client. Talk to supplier server 
+  // and vendor server to fetch inventory information.
+  // Return satisfying shops info with the lowest price.
+  // If the food name doesn't exist, return nothing.
+  rpc CheckFood (FinderRequest) returns (stream ShopInfo) {}
+}
+
 service Vendor {
-  // Sends a greeting
-  rpc SayHello (HelloRequest) returns (HelloReply) {}
-  //
+  // A Finder initiate this request to check inventory.
+  // returns inventoryinfo. Return price = -1 if out of stock.
   rpc CheckInventory (FoodID) returns (InventoryInfo) {}
 }
 
 service Supplier {
-  // Sends a greeting
-  rpc SayHello (HelloRequest) returns (HelloReply) {}
-
-  rpc CheckVendor (FoodID) returns (VendorInfo) {}
+  // A Finder initiate this request.
+  // Returns a stream of vendor info. Streaming loadbalaces servers
+  // and potentially provides better data parallelism
+  rpc CheckVendor (FoodID) returns (stream VendorInfo) {}
 }
 
-// The request message containing the user's name.
-message HelloRequest {
-  string name = 1;
-}
-
-// The response message containing the greetings
-message HelloReply {
-  string message = 1;
-}
-
-message Request {
-  uint32 food_id = 1;
+message FinderRequest {
+  // A request from client to Finder.
+  string food_name = 1;
   uint32 quantity = 2;
 }
 
