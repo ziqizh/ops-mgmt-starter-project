@@ -61,6 +61,8 @@ class FinderServiceImpl final : public supplyfinder::Finder::Service {
   FinderServiceImpl(std::string supplier_target_str);
   grpc::Status CheckFood(grpc::ServerContext*, const supplyfinder::FinderRequest*,
                          grpc::ServerWriter<supplyfinder::ShopInfo>*);
+  grpc::Status UpdateSupplier(grpc::ServerContext*, const supplyfinder::SupplierInfo*,
+                              google::protobuf::Empty*);
   static void PrintResult(
       const uint32_t,
       const std::vector<

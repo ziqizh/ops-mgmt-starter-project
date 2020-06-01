@@ -55,13 +55,17 @@ class VendorServiceImpl final : public Vendor::Service {
   Status CheckInventory(ServerContext* context, const FoodID* request,
                         InventoryInfo* info) {
     uint32_t food_id = request->food_id();
+    std::cout << "Food " << food_id;
     auto inventory = inventory_db_.find(food_id);
     if (inventory == inventory_db_.end()) {
+      std::cout << " Not Found" << std::endl;
       Status status(StatusCode::NOT_FOUND, "Food ID not found.");
       return status;
     }
     info->set_price(inventory->second.price());
     info->set_quantity(inventory->second.quantity());
+    std::cout << " has price " << inventory->second.price() << " and quantity "
+              << inventory->second.quantity() << std::endl;
     return Status::OK;
   }
 
@@ -92,15 +96,6 @@ void RunServer(std::string addr) {
 }
 
 int main(int argc, char** argv) {
-  // if (argc < 2) {
-  //   std::cout << "Usage: " << argv[0] << " [PORT]" << std::endl;
-  //   return 1;
-  // }
-  // std::string addr = "0.0.0.0:" + std::string(argv[1]);
-  // std::cout << "Running " << addr << std::endl;
-  // RunServer(addr);
-
-
   int server_number = 1;
   int base_port = 50053;
 

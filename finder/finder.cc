@@ -10,9 +10,6 @@
 // #include <grpcpp/grpcpp.h>
 #include "finder.h"
 
-using std::vector;
-using std::pair;
-using std::string;
 using grpc::Channel;
 using grpc::ClientContext;
 using grpc::ClientReader;
@@ -124,6 +121,15 @@ long FinderServiceImpl::GetFoodID(const string& food_name) {
     return -1;
   }
   return it->second;
+}
+
+Status FinderServiceImpl::UpdateSupplier(grpc::ServerContext* context,
+                                         const supplyfinder::SupplierInfo* info,
+                                         google::protobuf::Empty* empty) {
+  supplier_client_ = SupplierClient(grpc::CreateChannel(
+      info->url(), grpc::InsecureChannelCredentials()));
+  std::cout << "supplier client updated to " << info->url() << std::endl;
+  return Status::OK;
 }
 
 void FinderServiceImpl::InitFoodID(vector<string>& food_names) {

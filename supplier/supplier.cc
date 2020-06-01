@@ -15,6 +15,7 @@
 #include "supplyfinder.grpc.pb.h"
 #endif
 
+using google::protobuf::Empty;
 using grpc::Server;
 using grpc::ServerBuilder;
 using grpc::ServerContext;
@@ -28,7 +29,8 @@ using supplyfinder::FoodID;
 using supplyfinder::Supplier;
 using supplyfinder::VendorInfo;
 
-VendorInfo CreateVendor(std::string url, std::string name, std::string location) {
+VendorInfo CreateVendor(std::string url, std::string name,
+                        std::string location) {
   VendorInfo vendor;
   vendor.set_url(url);
   vendor.set_name(name);
@@ -42,21 +44,12 @@ class SupplierServiceImpl final : public Supplier::Service {
   // DB maintains a mapping ID -> vector<VendorInfo*>.
   // Stores pointers to VendorInfos, which are stored in an array
   std::unordered_map<uint32_t, vector<VendorInfo*>> vendor_db_;
-  VendorInfo vendor[4];
+  VendorInfo
+      vendor_[10];  // use C style array to ensure the validity of the address
+  int vendor_count_;
 
  public:
-  SupplierServiceImpl() {
-    vendor[0] = CreateVendor("localhost:50053", "Kroger", "Ann Arbor, MI");
-    vendor[1] = CreateVendor("localhost:50054", "Trader Joes", "Pittsburgh, PA");
-    vendor[2] = CreateVendor("localhost:50055", "Walmart", "Beijing, CN");
-    vendor[3] = CreateVendor("localhost:50056", "Costco", "Rochester, NY");
-
-    for (int i = 0; i < 10; i++) {
-      for (int j = 0; j < 4; j++) {
-        vendor_db_[i].push_back(&vendor[j]);
-      }
-    }
-  }
+  SupplierServiceImpl() : vendor_count_(0) {}
 
   Status CheckVendor(ServerContext* context, const FoodID* request,
                      ServerWriter<VendorInfo>* writer) override {
@@ -70,6 +63,23 @@ class SupplierServiceImpl final : public Supplier::Service {
     for (const auto vendor : vendors->second) {
       writer->Write(*vendor);
     }
+    return Status::OK;
+  }
+
+  Status AddVendor(ServerContext* context, const VendorInfo* request,
+                   Empty* info) {
+    if (vendor_count_ > 9) {
+      return Status(
+          StatusCode::OUT_OF_RANGE,
+          "Reached maximum vendor. Please consider resetting the vendors");
+    }
+    vendor_[vendor_count_] = CreateVendor(request->url(), request->name(),
+                                   request->location());
+    for (uint32_t i = 0; i < 10; i++) {
+      vendor_db_[i].push_back(&vendor_[vendor_count_]);
+    }
+
+    vendor_count_++;
     return Status::OK;
   }
 };

@@ -17,6 +17,7 @@
  */
 
 #include <grpcpp/grpcpp.h>
+#include <unistd.h>
 
 #include <cstdint>
 #include <iostream>
@@ -25,10 +26,9 @@
 #include <utility>
 #include <vector>
 
-#include <grpcpp/grpcpp.h>
-
 #include "supplyfinder.grpc.pb.h"
 
+using google::protobuf::Empty;
 using grpc::Channel;
 using grpc::ClientContext;
 using grpc::ClientReader;
@@ -41,6 +41,7 @@ using supplyfinder::FoodID;
 using supplyfinder::InventoryInfo;
 using supplyfinder::ShopInfo;
 using supplyfinder::Supplier;
+using supplyfinder::SupplierInfo;
 using supplyfinder::Vendor;
 using supplyfinder::VendorInfo;
 
@@ -78,71 +79,108 @@ class FinderClient {
     }
   }
 
+  void UpdateSupplier(const std::string& addr) {
+    SupplierInfo info;
+    Empty empty;
+    ClientContext context;
+    info.set_url(addr);
+    Status status = stub_->UpdateSupplier(&context, info, &empty);
+    if (!status.ok()) {
+      std::cout << status.error_code() << ": " << status.error_message()
+                << std::endl;
+    }
+  }
+
  private:
   std::unique_ptr<Finder::Stub> stub_;
 };
 
-void ProcessRequest(const std::string& target_str, std::string& food_name,
-                    uint32_t quantity) {
-  /*
-   * Initiate client with supplier channel. Retrieve a list of vendor address
-   * Then create client
-   * return a vector of <Vendor Info, Inventory Info>
-   */
+class Client {
+ public:
+  Client(std::string& finder_addr)
+      : finder_client_(grpc::CreateChannel(finder_addr,
+                                     grpc::InsecureChannelCredentials())) {}
 
-  FinderClient client(
-      grpc::CreateChannel(target_str, grpc::InsecureChannelCredentials()));
-  client.InquireFoodInfo(food_name, quantity);
-}
+  void ProcessRequest(std::string& food_name, uint32_t quantity) {
+    finder_client_.InquireFoodInfo(food_name, quantity);
+  }
 
-int main(int argc, char** argv) {
-  // Parse Argument
-  std::string target_str;
-  std::string arg_str = "--target";
-  if (argc > 1) {
-    std::string arg_val = argv[1];
-    size_t start_pos = arg_val.find(arg_str);
-    if (start_pos != std::string::npos) {
-      start_pos += arg_str.size();
-      if (arg_val[start_pos] == '=') {
-        target_str = arg_val.substr(start_pos + 1);
-      } else {
-        std::cout << "The only correct argument syntax is --target="
+  void InitSupplier(const std::string& supplier_addr) {
+    std::cout << "========== Initializing Supplier Server at " << supplier_addr
+              << " ==========" << std::endl;
+    finder_client_.UpdateSupplier(supplier_addr);
+
+    std::shared_ptr<Channel> channel =
+        grpc::CreateChannel(supplier_addr, grpc::InsecureChannelCredentials());
+    std::unique_ptr<Supplier::Stub> supplier_stub = Supplier::NewStub(channel);
+    
+    VendorInfo info;
+    Empty empty;
+    ClientContext context;
+    std::string url, name, location;
+    std::cout << "please input server url, name and location, separated by newlines." << std::endl;
+    while(std::cin >> url >> name >> location) {
+      info.set_url(url);
+      info.set_name(name);
+      info.set_location(location);
+      Status status = supplier_stub->AddVendor(&context, info, &empty);
+      if (!status.ok()) {
+        std::cout << status.error_code() << ": " << status.error_message()
                   << std::endl;
-        return 0;
+        return;
       }
-    } else {
-      std::cout << "The only acceptable argument is --target=" << std::endl;
-      return 0;
     }
-  } else if (argc > 2) {
-    std::cout << "Too much arguments: The only acceptable argument is --target="
-              << std::endl;
-    return 0;
-  } else {
-    target_str = "0.0.0.0:50051";
+  }
+
+ private:
+  FinderClient finder_client_;
+};
+
+int main(int argc, char* argv[]) {
+  // Parse Argument
+  std::string finder_addr = "0.0.0.0:50051";
+  std::string supplier_addr;
+  bool init_supplier = false;
+  int c;
+  while ((c = getopt(argc, argv, "n:t:")) != -1) {
+    switch (c) {
+      case 'n':
+        if (optarg) {
+          init_supplier = true;
+          supplier_addr = optarg;
+        }
+        break;
+      case 't':
+        if (optarg) finder_addr = optarg;
+        break;
+    }
+  }
+  Client client(finder_addr);
+
+  if (init_supplier) {
+    client.InitSupplier(supplier_addr);
   }
 
   // Test
   std::string food_name = "flour";
   std::cout << "========== Querying Food: " << food_name
             << " Quantity = 50 ==========" << std::endl;
-  ProcessRequest(target_str, food_name, 50);
+  client.ProcessRequest(food_name, 50);
 
   food_name = "egg";
   std::cout << "========== Querying Food: " << food_name
             << " Quantity = 50 ==========" << std::endl;
-  ProcessRequest(target_str, food_name, 50);
+  client.ProcessRequest(food_name, 50);
 
   food_name = "milk";
   std::cout << "========== Querying Food: " << food_name
             << " Quantity = 50 ==========" << std::endl;
-  ProcessRequest(target_str, food_name, 50);
+  client.ProcessRequest(food_name, 50);
 
   food_name = "quail";
   std::cout << "========== Querying Food: " << food_name
             << " Quantity = 50 ==========" << std::endl;
-  ProcessRequest(target_str, food_name, 50);
+  client.ProcessRequest(food_name, 50);
 
   return 0;
 }
