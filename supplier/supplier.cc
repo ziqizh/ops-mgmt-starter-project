@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #ifdef BAZEL_BUILD
@@ -44,9 +45,11 @@ class SupplierServiceImpl final : public Supplier::Service {
   // DB maintains a mapping ID -> vector<VendorInfo*>.
   // Stores pointers to VendorInfos, which are stored in an array
   std::unordered_map<uint32_t, vector<VendorInfo*>> vendor_db_;
-  VendorInfo
-      vendor_[10];  // use C style array to ensure the validity of the address
+  // use C style array to ensure the validity of the address
+  VendorInfo vendor_[10]; 
   int vendor_count_;
+  // Store existing vendor addresses to prevent double counting
+  std::unordered_set<std::string> vendor_addr_;
 
  public:
   SupplierServiceImpl() : vendor_count_(0) {}
@@ -73,6 +76,11 @@ class SupplierServiceImpl final : public Supplier::Service {
           StatusCode::OUT_OF_RANGE,
           "Reached maximum vendor. Please consider resetting the vendors");
     }
+    if (vendor_addr_.count(request->url())) {
+      return Status(
+          StatusCode::ALREADY_EXISTS,
+          "Current vendor address already exists.");
+    }
     std::cout << "Adding Vendor " << request->url() << " " << request->name()
               << " " << request->location() << std::endl;
     vendor_[vendor_count_] =
@@ -80,7 +88,7 @@ class SupplierServiceImpl final : public Supplier::Service {
     for (uint32_t i = 0; i < 10; i++) {
       vendor_db_[i].push_back(&vendor_[vendor_count_]);
     }
-
+    vendor_addr_.insert(request->url());
     vendor_count_++;
     return Status::OK;
   }

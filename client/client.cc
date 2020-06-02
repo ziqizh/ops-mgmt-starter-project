@@ -118,9 +118,11 @@ class Client {
     Empty empty;
     std::string url, name, location;
     std::cout
-        << "please input server url, name and location, separated by newlines."
-        << std::endl;
-    while (std::cin >> url >> name >> location) {
+        << "please input server url, name and location, separated by newlines.\n"
+        << "Or enter q to stop." << std::endl;
+    while (getline(std::cin, url) && url != "q") {
+      getline(std::cin, name);
+      getline(std::cin, location);
       info.set_url(url);
       info.set_name(name);
       info.set_location(location);
@@ -129,7 +131,6 @@ class Client {
       if (!status.ok()) {
         std::cout << status.error_code() << ": " << status.error_message()
                   << std::endl;
-        return;
       }
     }
   }
@@ -170,25 +171,25 @@ int main(int argc, char* argv[]) {
   }
 
   // Testing
-  std::string food_name = "flour";
-  std::cout << "========== Querying Food: " << food_name
-            << " Quantity = 50 ==========" << std::endl;
-  client.ProcessRequest(food_name, 50);
+  std::cout << "Try to find some food! Input the food name and quantity"
+            << " separated by newline.\n You can try something like: flour, "
+            << "apple, egg, milk, water, or even quail.\n Or q to stop." << std::endl;
 
-  food_name = "egg";
-  std::cout << "========== Querying Food: " << food_name
-            << " Quantity = 50 ==========" << std::endl;
-  client.ProcessRequest(food_name, 50);
+  int quantity;
+  std::string food_name;
+  while (getline(std::cin, food_name) && food_name != "q") {
+    std::string input;
+    getline(std::cin, input);
+    quantity = std::stoi(input);
+    if (quantity < 0) {
+      std::cout << "Please input a positive quantity." << std::endl;
+      continue;
+    }
+    std::cout << "========== Querying Food: " << food_name
+              << " Quantity = " << quantity << " ==========" << std::endl;
+    client.ProcessRequest(food_name, quantity);
+  }
 
-  food_name = "milk";
-  std::cout << "========== Querying Food: " << food_name
-            << " Quantity = 50 ==========" << std::endl;
-  client.ProcessRequest(food_name, 50);
-
-  food_name = "quail";
-  std::cout << "========== Querying Food: " << food_name
-            << " Quantity = 50 ==========" << std::endl;
-  client.ProcessRequest(food_name, 50);
-
+  std::cout << "See you again!" << std::endl;
   return 0;
 }

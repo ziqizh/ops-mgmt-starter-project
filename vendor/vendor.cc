@@ -98,19 +98,8 @@ void RunServer(std::string addr) {
 int main(int argc, char** argv) {
   int server_number = 1;
   int base_port = 50053;
-
-  std::vector<std::thread> threads;
-  for (int i = 0; i < server_number; i++) {
-    int port = base_port + i;
-    std::string addr = "0.0.0.0:" + std::to_string(port);
-    std::cout << "Running " << addr << std::endl;
-    threads.emplace_back(RunServer, addr);
-  }
-
-  for (auto& t : threads) {
-    t.join();
-  }
-
-  threads.clear();
+  std::string addr = "0.0.0.0:50053";
+  std::cout << "Running " << addr << std::endl;
+  RunServer(addr);
   return 0;
 }
