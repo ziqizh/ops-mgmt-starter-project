@@ -6,6 +6,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <unistd.h>
 
 // #include <grpcpp/grpcpp.h>
 #include "finder.h"
@@ -126,8 +127,8 @@ long FinderServiceImpl::GetFoodID(const string& food_name) {
 Status FinderServiceImpl::UpdateSupplier(grpc::ServerContext* context,
                                          const supplyfinder::SupplierInfo* info,
                                          google::protobuf::Empty* empty) {
-  supplier_client_ = SupplierClient(grpc::CreateChannel(
-      info->url(), grpc::InsecureChannelCredentials()));
+  supplier_client_ = SupplierClient(
+      grpc::CreateChannel(info->url(), grpc::InsecureChannelCredentials()));
   std::cout << "supplier client updated to " << info->url() << std::endl;
   return Status::OK;
 }
@@ -229,30 +230,14 @@ int main(int argc, char** argv) {
   // the argument "--target=" which is the only expected argument.
   // We indicate that the channel isn't authenticated (use of
   // InsecureChannelCredentials()).
-  std::string supplier_target_str;
-  std::string arg_str = "--target";
-  if (argc > 1) {
-    std::string arg_val = argv[1];
-    size_t start_pos = arg_val.find(arg_str);
-    if (start_pos != std::string::npos) {
-      start_pos += arg_str.size();
-      if (arg_val[start_pos] == '=') {
-        supplier_target_str = arg_val.substr(start_pos + 1);
-      } else {
-        std::cout << "The only correct argument syntax is --target="
-                  << std::endl;
-        return 0;
-      }
-    } else {
-      std::cout << "The only acceptable argument is --target=" << std::endl;
-      return 0;
+  std::string supplier_target_str = "localhost:50052";
+  int c;
+  while ((c = getopt(argc, argv, "t:")) != -1) {
+    switch (c) {
+      case 't':
+        if (optarg) supplier_target_str = optarg;
+        break;
     }
-  } else if (argc > 2) {
-    std::cout << "Too much arguments: The only acceptable argument is --target="
-              << std::endl;
-    return 0;
-  } else {
-    supplier_target_str = "localhost:50052";
   }
 
   RunServer(supplier_target_str);

@@ -73,8 +73,10 @@ class SupplierServiceImpl final : public Supplier::Service {
           StatusCode::OUT_OF_RANGE,
           "Reached maximum vendor. Please consider resetting the vendors");
     }
-    vendor_[vendor_count_] = CreateVendor(request->url(), request->name(),
-                                   request->location());
+    std::cout << "Adding Vendor " << request->url() << " " << request->name()
+              << " " << request->location() << std::endl;
+    vendor_[vendor_count_] =
+        CreateVendor(request->url(), request->name(), request->location());
     for (uint32_t i = 0; i < 10; i++) {
       vendor_db_[i].push_back(&vendor_[vendor_count_]);
     }

@@ -98,8 +98,8 @@ class FinderClient {
 class Client {
  public:
   Client(std::string& finder_addr)
-      : finder_client_(grpc::CreateChannel(finder_addr,
-                                     grpc::InsecureChannelCredentials())) {}
+      : finder_client_(grpc::CreateChannel(
+            finder_addr, grpc::InsecureChannelCredentials())) {}
 
   void ProcessRequest(std::string& food_name, uint32_t quantity) {
     finder_client_.InquireFoodInfo(food_name, quantity);
@@ -113,16 +113,18 @@ class Client {
     std::shared_ptr<Channel> channel =
         grpc::CreateChannel(supplier_addr, grpc::InsecureChannelCredentials());
     std::unique_ptr<Supplier::Stub> supplier_stub = Supplier::NewStub(channel);
-    
+
     VendorInfo info;
     Empty empty;
-    ClientContext context;
     std::string url, name, location;
-    std::cout << "please input server url, name and location, separated by newlines." << std::endl;
-    while(std::cin >> url >> name >> location) {
+    std::cout
+        << "please input server url, name and location, separated by newlines."
+        << std::endl;
+    while (std::cin >> url >> name >> location) {
       info.set_url(url);
       info.set_name(name);
       info.set_location(location);
+      ClientContext context;
       Status status = supplier_stub->AddVendor(&context, info, &empty);
       if (!status.ok()) {
         std::cout << status.error_code() << ": " << status.error_message()
@@ -142,19 +144,20 @@ int main(int argc, char* argv[]) {
   std::string supplier_addr;
   bool init_supplier = false;
   int c;
-  while ((c = getopt(argc, argv, "n:t:")) != -1) {
+  while ((c = getopt(argc, argv, "s:f:")) != -1) {
     switch (c) {
-      case 'n':
+      case 's':
         if (optarg) {
           init_supplier = true;
           supplier_addr = optarg;
         }
         break;
-      case 't':
+      case 'f':
         if (optarg) finder_addr = optarg;
         break;
     }
   }
+  std::cout << "finder addr: " << finder_addr << std::endl;
   Client client(finder_addr);
 
   if (init_supplier) {

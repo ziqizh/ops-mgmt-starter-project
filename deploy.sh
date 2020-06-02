@@ -97,7 +97,7 @@ function create {
 
 function delete {
   create_config
-  kubectl delete -f greeter-server.yaml
+  kubectl delete -f greeter-server.yaml greeter-server.yaml
 }
 
 function create_pb {
