@@ -144,6 +144,11 @@ int main(int argc, char* argv[]) {
   std::string supplier_addr;
   bool init_supplier = false;
   int c;
+
+  // option 's' allows the user to register supplier address
+  //   with the Finder server, and register vendor information
+  //   with the Supplier server.
+  // option 'f' specifies the Finder server it talks to.
   while ((c = getopt(argc, argv, "s:f:")) != -1) {
     switch (c) {
       case 's':
@@ -164,7 +169,7 @@ int main(int argc, char* argv[]) {
     client.InitSupplier(supplier_addr);
   }
 
-  // Test
+  // Testing
   std::string food_name = "flour";
   std::cout << "========== Querying Food: " << food_name
             << " Quantity = 50 ==========" << std::endl;

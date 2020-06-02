@@ -14,6 +14,8 @@ service Finder {
   // Return satisfying shops info with the lowest price.
   // If the food name doesn't exist, return nothing.
   rpc CheckFood (FinderRequest) returns (stream ShopInfo) {}
+
+  // Register the supplier using Supplier Info.
   rpc UpdateSupplier (SupplierInfo) returns (google.protobuf.Empty) {}
 }
 
@@ -28,6 +30,9 @@ service Supplier {
   // Returns a stream of vendor info. Streaming loadbalaces servers
   // and potentially provides better data parallelism
   rpc CheckVendor (FoodID) returns (stream VendorInfo) {}
+
+  // Register new vendor information. Return OUT_OF_RANGE
+  // if the total number of vendors exceeds 10.
   rpc AddVendor (VendorInfo) returns (google.protobuf.Empty) {}
 }
 
