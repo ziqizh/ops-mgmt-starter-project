@@ -32,13 +32,14 @@ using supplyfinder::FinderRequest;
 using supplyfinder::FoodID;
 using supplyfinder::InventoryInfo;
 using supplyfinder::ShopInfo;
+using supplyfinder::ShopResponse;
 using supplyfinder::Supplier;
 using supplyfinder::Vendor;
 using supplyfinder::VendorInfo;
 
 Status FinderServiceImpl::CheckFood(ServerContext* context,
                                     const FinderRequest* request,
-                                    ServerWriter<ShopInfo>* writer) {
+                                    ShopResponse* response) {
   std::cout << "========== Receving Request Food: " << request->food_name()
             << " ==========" << std::endl;
 
@@ -54,7 +55,8 @@ Status FinderServiceImpl::CheckFood(ServerContext* context,
   std::sort(result.begin(), result.end(), Comp());
 
   for (const auto& info : result) {
-    writer->Write(info);
+    ShopInfo* shopinfo = response->add_shopinfo();
+    *shopinfo = info;
     quantity -= info.inventory().quantity();
     if (quantity <= 0) break;
   }
@@ -99,8 +101,10 @@ std::unique_ptr<ClientReader<VendorInfo>>& SupplierClient::InitReader(
 FinderServiceImpl::FinderServiceImpl(std::string supplier_target_str)
     : supplier_client_(grpc::CreateChannel(
           supplier_target_str, grpc::InsecureChannelCredentials())) {
+  std::cout << "Registered " << supplier_target_str << " as the supplier." << std::endl;
   vector<string> food_names = {"apple", "egg",   "milk",
-                               "flour", "water", "butter"};
+                               "flour", "water", "butter",
+                               "cheese", "chicken", "yeast"};
   InitFoodID(food_names);
 }
 
@@ -122,15 +126,6 @@ long FinderServiceImpl::GetFoodID(const string& food_name) {
     return -1;
   }
   return it->second;
-}
-
-Status FinderServiceImpl::UpdateSupplier(grpc::ServerContext* context,
-                                         const supplyfinder::SupplierInfo* info,
-                                         google::protobuf::Empty* empty) {
-  supplier_client_ = SupplierClient(
-      grpc::CreateChannel(info->url(), grpc::InsecureChannelCredentials()));
-  std::cout << "supplier client updated to " << info->url() << std::endl;
-  return Status::OK;
 }
 
 void FinderServiceImpl::InitFoodID(vector<string>& food_names) {

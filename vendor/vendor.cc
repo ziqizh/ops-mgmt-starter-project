@@ -13,6 +13,8 @@
 #include <thread>
 #include <unordered_map>
 #include <vector>
+#include <unistd.h>
+
 
 #ifdef BAZEL_BUILD
 #include "examples/protos/supplyfinder.grpc.pb.h"
@@ -22,6 +24,9 @@
 
 #include "helpers.cc"
 
+using google::protobuf::Empty;
+using grpc::Channel;
+using grpc::ClientContext;
 using grpc::Server;
 using grpc::ServerBuilder;
 using grpc::ServerContext;
@@ -30,6 +35,8 @@ using grpc::StatusCode;
 using supplyfinder::FoodID;
 using supplyfinder::InventoryInfo;
 using supplyfinder::Vendor;
+using supplyfinder::VendorInfo;
+using supplyfinder::Supplier;
 
 // Logic and data behind the server's behavior.
 class VendorServiceImpl final : public Vendor::Service {
@@ -84,6 +91,7 @@ void RegisterVendor(std::string& supplier_addr, std::string vendor_addr,
 
   VendorInfo info = MakeVendor(vendor_addr, name, location);
   ClientContext context;
+  Empty empty;
   Status status = supplier_stub->RegisterVendor(&context, info, &empty);
   if (!status.ok()) {
     std::cout << status.error_code() << ": " << status.error_message()
@@ -112,7 +120,7 @@ void RunServer(std::string addr) {
   server->Wait();
 }
 
-int main(int argc, char*[] argv) {
+int main(int argc, char* argv[]) {
   // The vendor address is the public address of itself
   // The supplier address is the supplier server it talks to
   std::string vendor_addr = "0.0.0.0:50053";
@@ -123,21 +131,21 @@ int main(int argc, char*[] argv) {
   while ((c = getopt(argc, argv, "s:v:n:l:")) != -1) {
     switch (c) {
       case 's':
-        if (optarg) supplier_target_str = optarg;
+        if (optarg) supplier_addr = optarg;
         break;
       case 'v':
-        if (optarg) supplier_target_str = optarg;
+        if (optarg) vendor_addr = optarg;
         break;
       case 'n':
-        if (optarg) supplier_target_str = optarg;
+        if (optarg) name = optarg;
         break;
       case 'l':
-        if (optarg) supplier_target_str = optarg;
+        if (optarg) location = optarg;
         break;
     }
   }
   std::cout << "Running " << vendor_addr << std::endl;
   RegisterVendor(supplier_addr, vendor_addr, name, location);
-  RunServer(vendor_addr);
+  RunServer("0.0.0.0:50053");
   return 0;
 }

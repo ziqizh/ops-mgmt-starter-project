@@ -120,6 +120,8 @@ spec:
         ports:
           # must match the port of the service
           - containerPort: 50051
+
+
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -188,12 +190,12 @@ spec:
           # must match the port of the service
           - containerPort: 50053
         env:
-          - name: VENDOR_NAME
-              value: Kroger
-            - name: VENDOR_ADDRESS
-              value: ${kubectl get svc supplyfinder-vendor-1 -o jsonpath='{..ip}'}:50053
-            - name: SUPPLIER_ADDRESS
-              value: ${kubectl get svc supplyfinder-vendor-1 -o jsonpath='{..ip}'}:${kubectl get svc supplyfinder-vendor-1 -o jsonpath='{..port}'}
+          - name: NAME
+            value: Kroger
+          - name: LOCATION
+            value: MI
+          - name: SVC
+            value: vendor_1
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -227,6 +229,13 @@ spec:
         ports:
           # must match the port of the service
           - containerPort: 50053
+        env:
+          - name: NAME
+            value: Wegmans
+          - name: LOCATION
+            value: NY
+          - name: SVC
+            value: vendor_2
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -260,3 +269,10 @@ spec:
         ports:
           # must match the port of the service
           - containerPort: 50053
+        env:
+          - name: NAME
+            value: Giant Eagle
+          - name: LOCATION
+            value: PA
+          - name: SVC
+            value: vendor_3

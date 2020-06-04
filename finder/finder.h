@@ -61,7 +61,7 @@ class FinderServiceImpl final : public supplyfinder::Finder::Service {
   FinderServiceImpl(std::string supplier_target_str);
   grpc::Status CheckFood(grpc::ServerContext*,
                          const supplyfinder::FinderRequest*,
-                         grpc::ServerWriter<supplyfinder::ShopInfo>*);
+                         supplyfinder::ShopResponse*);
   // Get corresponding food ID given food name
   long GetFoodID(const std::string&);
   std::vector<supplyfinder::ShopInfo> ProcessRequest(const std::string&);

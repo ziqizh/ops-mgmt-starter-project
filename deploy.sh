@@ -23,7 +23,25 @@ function die {
   exit 1
 }
 
+function init_address {
+  export SUPPLIER=$(kubectl get svc supplyfinder-supplier -o jsonpath='{..ip}'):$(kubectl get svc supplyfinder-supplier -o jsonpath='{..port}')
+  echo SUPPLIER: $SUPPLIER
+  export SVC=supplyfinder-vendor-1
+  export VENDOR1=$(kubectl get svc $SVC -o jsonpath='{..ip}'):$(kubectl get svc $SVC -o jsonpath='{..port}')
+  echo VENDOR1: $VENDOR1
+  export SVC=supplyfinder-vendor-2
+  export VENDOR2=$(kubectl get svc $SVC -o jsonpath='{..ip}'):$(kubectl get svc $SVC -o jsonpath='{..port}')
+  echo VENDOR2: $VENDOR2
+  export SVC=supplyfinder-vendor-3
+  export VENDOR3=$(kubectl get svc $SVC -o jsonpath='{..ip}'):$(kubectl get svc $SVC -o jsonpath='{..port}')
+  echo VENDOR3: $VENDOR3
+  export SVC=supplyfinder-finder
+  export FINDER=$(kubectl get svc $SVC -o jsonpath='{..ip}'):$(kubectl get svc $SVC -o jsonpath='{..port}')
+  echo FINDER: $FINDER
+}
+
 function build_images {
+  export SUPPLIER_ADDRESS=$(kubectl get svc supplyfinder-supplier -o jsonpath='{..ip}'):$(kubectl get svc supplyfinder-supplier -o jsonpath='{..port}')
   push_image client
   push_image finder
   push_image supplier
@@ -48,8 +66,8 @@ function run_client {
 
 function push_image {
   local target=$1
-
-  docker build -f "${target}/Dockerfile" -t "supplyfinder-${target}" .
+  init_address
+  docker build --build-arg SUPPLIER --build-arg VENDOR1 --build-arg VENDOR2 --build-arg VENDOR3 --build-arg FINDER -f "${target}/Dockerfile" -t "supplyfinder-${target}" .
   docker tag "supplyfinder-${target}" "gcr.io/${PROJECT_ID}/supplyfinder-${target}"
   docker push "gcr.io/${PROJECT_ID}/supplyfinder-${target}"
 }

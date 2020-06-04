@@ -26,8 +26,9 @@
 #include <utility>
 #include <vector>
 
-#include "supplyfinder.grpc.pb.h"
 #include "helpers.cc"
+
+#include "supplyfinder.grpc.pb.h"
 
 using google::protobuf::Empty;
 using grpc::Channel;
