@@ -194,17 +194,6 @@ vector<ShopInfo> FinderServiceImpl::ProcessRequest(const string& food_name) {
   return result;
 }
 
-void FinderServiceImpl::PrintResult(
-    const uint32_t id, const vector<pair<VendorInfo, InventoryInfo>>& result) {
-  std::cout << "The following " << id << std::endl;
-  for (auto& p : result) {
-    std::cout << "Vendor url: " << p.first.url() << "; name: " << p.first.name()
-              << "; location: " << p.first.location() << std::endl;
-    std::cout << "Inventory price: " << p.second.price()
-              << "; quantity: " << p.second.quantity() << std::endl;
-  }
-}
-
 void RunServer(string& supplier_target_str) {
   std::string server_address("0.0.0.0:50051");
   FinderServiceImpl service(supplier_target_str);
@@ -225,16 +214,12 @@ void RunServer(string& supplier_target_str) {
 }
 
 int main(int argc, char** argv) {
-  // Instantiate the client. It requires a channel, out of which the actual RPCs
-  // are created. This channel models a connection to an endpoint specified by
-  // the argument "--target=" which is the only expected argument.
-  // We indicate that the channel isn't authenticated (use of
-  // InsecureChannelCredentials()).
-  std::string supplier_target_str = "localhost:50052";
+  // The Finder takes the argument -s to get the address of the supplier.
+  std::string supplier_target_str = "0.0.0.0:50052";
   int c;
-  while ((c = getopt(argc, argv, "t:")) != -1) {
+  while ((c = getopt(argc, argv, "s:")) != -1) {
     switch (c) {
-      case 't':
+      case 's':
         if (optarg) supplier_target_str = optarg;
         break;
     }

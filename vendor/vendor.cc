@@ -20,6 +20,8 @@
 #include "supplyfinder.grpc.pb.h"
 #endif
 
+#include "helpers.cc"
+
 using grpc::Server;
 using grpc::ServerBuilder;
 using grpc::ServerContext;
@@ -74,6 +76,21 @@ class VendorServiceImpl final : public Vendor::Service {
   std::unordered_map<uint32_t, InventoryInfo> inventory_db_;
 };
 
+void RegisterVendor(std::string& supplier_addr, std::string vendor_addr,
+                    std::string name, std::string location) {
+  std::shared_ptr<Channel> channel =
+        grpc::CreateChannel(supplier_addr, grpc::InsecureChannelCredentials());
+  std::unique_ptr<Supplier::Stub> supplier_stub = Supplier::NewStub(channel);
+
+  VendorInfo info = MakeVendor(vendor_addr, name, location);
+  ClientContext context;
+  Status status = supplier_stub->RegisterVendor(&context, info, &empty);
+  if (!status.ok()) {
+    std::cout << status.error_code() << ": " << status.error_message()
+              << std::endl;
+  }
+}
+
 void RunServer(std::string addr) {
   std::string server_address(addr);
   VendorServiceImpl service;
@@ -95,11 +112,32 @@ void RunServer(std::string addr) {
   server->Wait();
 }
 
-int main(int argc, char** argv) {
-  int server_number = 1;
-  int base_port = 50053;
-  std::string addr = "0.0.0.0:50053";
-  std::cout << "Running " << addr << std::endl;
-  RunServer(addr);
+int main(int argc, char*[] argv) {
+  // The vendor address is the public address of itself
+  // The supplier address is the supplier server it talks to
+  std::string vendor_addr = "0.0.0.0:50053";
+  std::string supplier_addr = "0.0.0.0:50052";
+  std::string name = "Wegmans";
+  std::string location = "NY";
+  int c;
+  while ((c = getopt(argc, argv, "s:v:n:l:")) != -1) {
+    switch (c) {
+      case 's':
+        if (optarg) supplier_target_str = optarg;
+        break;
+      case 'v':
+        if (optarg) supplier_target_str = optarg;
+        break;
+      case 'n':
+        if (optarg) supplier_target_str = optarg;
+        break;
+      case 'l':
+        if (optarg) supplier_target_str = optarg;
+        break;
+    }
+  }
+  std::cout << "Running " << vendor_addr << std::endl;
+  RegisterVendor(supplier_addr, vendor_addr, name, location);
+  RunServer(vendor_addr);
   return 0;
 }

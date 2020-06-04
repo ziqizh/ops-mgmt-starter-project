@@ -16,6 +16,8 @@
 #include "supplyfinder.grpc.pb.h"
 #endif
 
+#include "helpers.cc"
+
 using google::protobuf::Empty;
 using grpc::Server;
 using grpc::ServerBuilder;
@@ -29,15 +31,6 @@ using std::vector;
 using supplyfinder::FoodID;
 using supplyfinder::Supplier;
 using supplyfinder::VendorInfo;
-
-VendorInfo CreateVendor(std::string url, std::string name,
-                        std::string location) {
-  VendorInfo vendor;
-  vendor.set_url(url);
-  vendor.set_name(name);
-  vendor.set_location(location);
-  return vendor;
-}
 
 // Logic and data behind the server's behavior.
 class SupplierServiceImpl final : public Supplier::Service {
@@ -69,7 +62,7 @@ class SupplierServiceImpl final : public Supplier::Service {
     return Status::OK;
   }
 
-  Status AddVendor(ServerContext* context, const VendorInfo* request,
+  Status RegisterVendor(ServerContext* context, const VendorInfo* request,
                    Empty* info) {
     if (vendor_count_ > 9) {
       return Status(
@@ -84,7 +77,7 @@ class SupplierServiceImpl final : public Supplier::Service {
     std::cout << "Adding Vendor " << request->url() << " " << request->name()
               << " " << request->location() << std::endl;
     vendor_[vendor_count_] =
-        CreateVendor(request->url(), request->name(), request->location());
+        MakeVendor(request->url(), request->name(), request->location());
     for (uint32_t i = 0; i < 10; i++) {
       vendor_db_[i].push_back(&vendor_[vendor_count_]);
     }

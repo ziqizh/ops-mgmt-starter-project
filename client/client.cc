@@ -27,6 +27,7 @@
 #include <vector>
 
 #include "supplyfinder.grpc.pb.h"
+#include "helpers.cc"
 
 using google::protobuf::Empty;
 using grpc::Channel;
@@ -40,18 +41,11 @@ using supplyfinder::FinderRequest;
 using supplyfinder::FoodID;
 using supplyfinder::InventoryInfo;
 using supplyfinder::ShopInfo;
+using supplyfinder::ShopResponse;
 using supplyfinder::Supplier;
 using supplyfinder::SupplierInfo;
 using supplyfinder::Vendor;
 using supplyfinder::VendorInfo;
-
-void PrintResult(const ShopInfo& p) {
-  std::cout << "\tVendor url: " << p.vendor().url()
-            << "; name: " << p.vendor().name()
-            << "; location: " << p.vendor().location() << std::endl;
-  std::cout << "\tInventory price: " << p.inventory().price()
-            << "; quantity: " << p.inventory().quantity() << "\n\n";
-}
 
 class FinderClient {
  public:
@@ -64,30 +58,18 @@ class FinderClient {
     request.set_quantity(quantity);
     ShopInfo reply;
     ClientContext context;
-    std::unique_ptr<ClientReader<ShopInfo>> reader(
-        stub_->CheckFood(&context, request));
-
-    std::cout << "Receiving Shop Information\n";
-    while (reader->Read(&reply)) {
-      PrintResult(reply);
-    }
-
-    Status status = reader->Finish();
+    ShopResponse response;
+    Status status = stub_->CheckFood(&context, request, &response);
     if (!status.ok()) {
       std::cout << status.error_code() << ": " << status.error_message()
                 << std::endl;
+      return;
+    } else if (response.shopinfo_size() == 0) {
+      std::cout << "No shop found." << std::endl;
     }
-  }
-
-  void UpdateSupplier(const std::string& addr) {
-    SupplierInfo info;
-    Empty empty;
-    ClientContext context;
-    info.set_url(addr);
-    Status status = stub_->UpdateSupplier(&context, info, &empty);
-    if (!status.ok()) {
-      std::cout << status.error_code() << ": " << status.error_message()
-                << std::endl;
+    std::cout << "Receiving Shop Information" << std::endl;
+    for (size_t i = 0; i < response.shopinfo_size(); ++i) {
+      PrintResult(response.shopinfo(i));
     }
   }
 
@@ -95,80 +77,23 @@ class FinderClient {
   std::unique_ptr<Finder::Stub> stub_;
 };
 
-class Client {
- public:
-  Client(std::string& finder_addr)
-      : finder_client_(grpc::CreateChannel(
-            finder_addr, grpc::InsecureChannelCredentials())) {}
-
-  void ProcessRequest(std::string& food_name, uint32_t quantity) {
-    finder_client_.InquireFoodInfo(food_name, quantity);
-  }
-
-  void InitSupplier(const std::string& supplier_addr) {
-    std::cout << "========== Initializing Supplier Server at " << supplier_addr
-              << " ==========" << std::endl;
-    finder_client_.UpdateSupplier(supplier_addr);
-
-    std::shared_ptr<Channel> channel =
-        grpc::CreateChannel(supplier_addr, grpc::InsecureChannelCredentials());
-    std::unique_ptr<Supplier::Stub> supplier_stub = Supplier::NewStub(channel);
-
-    VendorInfo info;
-    Empty empty;
-    std::string url, name, location;
-    std::cout
-        << "please input server url, name and location, separated by newlines.\n"
-        << "Or enter q to stop." << std::endl;
-    while (getline(std::cin, url) && url != "q") {
-      getline(std::cin, name);
-      getline(std::cin, location);
-      info.set_url(url);
-      info.set_name(name);
-      info.set_location(location);
-      ClientContext context;
-      Status status = supplier_stub->AddVendor(&context, info, &empty);
-      if (!status.ok()) {
-        std::cout << status.error_code() << ": " << status.error_message()
-                  << std::endl;
-      }
-    }
-  }
-
- private:
-  FinderClient finder_client_;
-};
-
 int main(int argc, char* argv[]) {
-  // Parse Argument
+  // The Client gets the finder address from the argument,
+  // and create a finder client.
   std::string finder_addr = "0.0.0.0:50051";
-  std::string supplier_addr;
-  bool init_supplier = false;
   int c;
 
-  // option 's' allows the user to register supplier address
-  //   with the Finder server, and register vendor information
-  //   with the Supplier server.
   // option 'f' specifies the Finder server it talks to.
-  while ((c = getopt(argc, argv, "s:f:")) != -1) {
+  while ((c = getopt(argc, argv, "f:")) != -1) {
     switch (c) {
-      case 's':
-        if (optarg) {
-          init_supplier = true;
-          supplier_addr = optarg;
-        }
-        break;
       case 'f':
         if (optarg) finder_addr = optarg;
         break;
     }
   }
-  std::cout << "finder addr: " << finder_addr << std::endl;
-  Client client(finder_addr);
-
-  if (init_supplier) {
-    client.InitSupplier(supplier_addr);
-  }
+  std::cout << "Finder address: " << finder_addr << std::endl;
+  FinderClient client(grpc::CreateChannel(
+            finder_addr, grpc::InsecureChannelCredentials()));
 
   // Testing
   std::cout << "Try to find some food! Input the food name and quantity"
@@ -187,7 +112,7 @@ int main(int argc, char* argv[]) {
     }
     std::cout << "========== Querying Food: " << food_name
               << " Quantity = " << quantity << " ==========" << std::endl;
-    client.ProcessRequest(food_name, quantity);
+    client.InquireFoodInfo(food_name, quantity);
   }
 
   std::cout << "See you again!" << std::endl;

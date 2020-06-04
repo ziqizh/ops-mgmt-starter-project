@@ -13,10 +13,7 @@ service Finder {
   // and vendor server to fetch inventory information.
   // Return satisfying shops info with the lowest price.
   // If the food name doesn't exist, return nothing.
-  rpc CheckFood (FinderRequest) returns (stream ShopInfo) {}
-
-  // Register the supplier using Supplier Info.
-  rpc UpdateSupplier (SupplierInfo) returns (google.protobuf.Empty) {}
+  rpc CheckFood (FinderRequest) returns (ShopResponse) {}
 }
 
 service Vendor {
@@ -33,7 +30,7 @@ service Supplier {
 
   // Register new vendor information. Return OUT_OF_RANGE
   // if the total number of vendors exceeds 10.
-  rpc AddVendor (VendorInfo) returns (google.protobuf.Empty) {}
+  rpc RegisterVendor (VendorInfo) returns (google.protobuf.Empty) {}
 }
 
 message FinderRequest {
@@ -59,6 +56,10 @@ message SupplierInfo {
 message InventoryInfo {
   double price = 1;
   uint32 quantity = 2;
+}
+
+message ShopResponse {
+  repeated ShopInfo shopinfo = 1;
 }
 
 message ShopInfo {

@@ -4,7 +4,7 @@ WORKDIR /data
 
 COPY vendor/vendor.* ./vendor/
 COPY proto/supplyfinder.proto ./proto/
-COPY Makefile ./
+COPY Makefile helpers.cc ./
 
 RUN make supplyfinder-vendor && make clean
 

@@ -187,6 +187,13 @@ spec:
         ports:
           # must match the port of the service
           - containerPort: 50053
+        env:
+          - name: VENDOR_NAME
+              value: Kroger
+            - name: VENDOR_ADDRESS
+              value: ${kubectl get svc supplyfinder-vendor-1 -o jsonpath='{..ip}'}:50053
+            - name: SUPPLIER_ADDRESS
+              value: ${kubectl get svc supplyfinder-vendor-1 -o jsonpath='{..ip}'}:${kubectl get svc supplyfinder-vendor-1 -o jsonpath='{..port}'}
 ---
 apiVersion: apps/v1
 kind: Deployment
