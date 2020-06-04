@@ -1,0 +1,278 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: supplyfinder-finder
+spec:
+  ports:
+    - # optional descriptive name for the service port
+      name: finder-port
+      # must match the service port specified in ingress
+      port: 50051
+      targetPort: 9000
+      protocol: TCP
+      name: http2
+  # the selector is used to link pods to services
+  selector:
+    app: supplyfinder-finder
+  type: LoadBalancer
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: supplyfinder-supplier
+spec:
+  ports:
+    - # optional descriptive name for the service port
+      name: supplier-port
+      # must match the service port specified in ingress
+      port: 50052
+      targetPort: 9000
+      protocol: TCP
+      name: http2
+  # the selector is used to link pods to services
+  selector:
+    app: supplyfinder-supplier
+  type: LoadBalancer
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: supplyfinder-vendor-1
+spec:
+  ports:
+    - # optional descriptive name for the service port
+      name: grpc-port
+      # must match the service port specified in ingress
+      port: 50053
+      targetPort: 9000
+      protocol: TCP
+      name: http2
+  # the selector is used to link pods to services
+  selector:
+    app: supplyfinder-vendor-1
+  type: LoadBalancer
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: supplyfinder-vendor-2
+spec:
+  ports:
+    - # optional descriptive name for the service port
+      name: grpc-port
+      # must match the service port specified in ingress
+      port: 50053
+      targetPort: 9000
+      protocol: TCP
+      name: http2
+  # the selector is used to link pods to services
+  selector:
+    app: supplyfinder-vendor-2
+  type: LoadBalancer
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: supplyfinder-vendor-3
+spec:
+  ports:
+    - # optional descriptive name for the service port
+      name: grpc-port
+      # must match the service port specified in ingress
+      port: 50053
+      targetPort: 9000
+      protocol: TCP
+      name: http2
+  # the selector is used to link pods to services
+  selector:
+    app: supplyfinder-vendor-3
+  type: LoadBalancer
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: supplyfinder-finder
+spec:
+  replicas: 1
+  # all pods matching this selector belong to this deployment
+  selector:
+    matchLabels:
+      app: supplyfinder-finder
+  template:
+    metadata:
+      # the other side of the link between services and pods
+      labels:
+        app: supplyfinder-finder
+    spec:
+      containers:
+      - name: esp
+        image: gcr.io/endpoints-release/endpoints-runtime:1
+        args: [
+          "--http2_port=9000",
+          "--backend=grpc://127.0.0.1:50051",
+          "--service=supplyfinder.endpoints.cal-intern-project.cloud.goog",
+          "--rollout_strategy=managed",
+        ]
+        ports:
+          - containerPort: 9000
+      - name: supplyfinder-finder
+        image: "gcr.io/cal-intern-project/supplyfinder-finder:latest"
+        ports:
+          # must match the port of the service
+          - containerPort: 50051
+
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: supplyfinder-supplier
+spec:
+  replicas: 1
+  # all pods matching this selector belong to this deployment
+  selector:
+    matchLabels:
+      app: supplyfinder-supplier
+  template:
+    metadata:
+      # the other side of the link between services and pods
+      labels:
+        app: supplyfinder-supplier
+    spec:
+      containers:
+      - name: esp
+        image: gcr.io/endpoints-release/endpoints-runtime:1
+        args: [
+          "--http2_port=9000",
+          "--backend=grpc://127.0.0.1:50052",
+          "--service=supplyfinder.endpoints.cal-intern-project.cloud.goog",
+          "--rollout_strategy=managed",
+          # "--dns=169.254.169.254",
+        ]
+        ports:
+          - containerPort: 9000
+      - name: supplyfinder-supplier
+        image: "gcr.io/cal-intern-project/supplyfinder-supplier:latest"
+        ports:
+          # must match the port of the service
+          - containerPort: 50052
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: supplyfinder-vendor-1
+spec:
+  replicas: 1
+  # all pods matching this selector belong to this deployment
+  selector:
+    matchLabels:
+      app: supplyfinder-vendor-1
+  template:
+    metadata:
+      # the other side of the link between services and pods
+      labels:
+        app: supplyfinder-vendor-1
+    spec:
+      containers:
+      - name: esp
+        image: gcr.io/endpoints-release/endpoints-runtime:1
+        args: [
+          "--http2_port=9000",
+          "--backend=grpc://127.0.0.1:50053",
+          "--service=supplyfinder.endpoints.cal-intern-project.cloud.goog",
+          "--rollout_strategy=managed",
+        ]
+        ports:
+          - containerPort: 9000
+      - name: supplyfinder-vendor
+        image: "gcr.io/cal-intern-project/supplyfinder-vendor:latest"
+        ports:
+          # must match the port of the service
+          - containerPort: 50053
+        env:
+          - name: NAME
+            value: Kroger
+          - name: LOCATION
+            value: MI
+          - name: SVC
+            value: vendor_1
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: supplyfinder-vendor-2
+spec:
+  replicas: 1
+  # all pods matching this selector belong to this deployment
+  selector:
+    matchLabels:
+      app: supplyfinder-vendor-2
+  template:
+    metadata:
+      # the other side of the link between services and pods
+      labels:
+        app: supplyfinder-vendor-2
+    spec:
+      containers:
+      - name: esp
+        image: gcr.io/endpoints-release/endpoints-runtime:1
+        args: [
+          "--http2_port=9000",
+          "--backend=grpc://127.0.0.1:50053",
+          "--service=supplyfinder.endpoints.cal-intern-project.cloud.goog",
+          "--rollout_strategy=managed",
+        ]
+        ports:
+          - containerPort: 9000
+      - name: supplyfinder-vendor
+        image: "gcr.io/cal-intern-project/supplyfinder-vendor:latest"
+        ports:
+          # must match the port of the service
+          - containerPort: 50053
+        env:
+          - name: NAME
+            value: Wegmans
+          - name: LOCATION
+            value: NY
+          - name: SVC
+            value: vendor_2
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: supplyfinder-vendor-3
+spec:
+  replicas: 1
+  # all pods matching this selector belong to this deployment
+  selector:
+    matchLabels:
+      app: supplyfinder-vendor-3
+  template:
+    metadata:
+      # the other side of the link between services and pods
+      labels:
+        app: supplyfinder-vendor-3
+    spec:
+      containers:
+      - name: esp
+        image: gcr.io/endpoints-release/endpoints-runtime:1
+        args: [
+          "--http2_port=9000",
+          "--backend=grpc://127.0.0.1:50053",
+          "--service=supplyfinder.endpoints.cal-intern-project.cloud.goog",
+          "--rollout_strategy=managed",
+        ]
+        ports:
+          - containerPort: 9000
+      - name: supplyfinder-vendor
+        image: "gcr.io/cal-intern-project/supplyfinder-vendor:latest"
+        ports:
+          # must match the port of the service
+          - containerPort: 50053
+        env:
+          - name: NAME
+            value: Giant Eagle
+          - name: LOCATION
+            value: PA
+          - name: SVC
+            value: vendor_3

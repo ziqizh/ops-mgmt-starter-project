@@ -6,9 +6,10 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <unistd.h>
 
 // #include <grpcpp/grpcpp.h>
-#include "finder_server.h"
+#include "finder.h"
 
 using grpc::Channel;
 using grpc::ClientContext;
@@ -31,13 +32,14 @@ using supplyfinder::FinderRequest;
 using supplyfinder::FoodID;
 using supplyfinder::InventoryInfo;
 using supplyfinder::ShopInfo;
+using supplyfinder::ShopResponse;
 using supplyfinder::Supplier;
 using supplyfinder::Vendor;
 using supplyfinder::VendorInfo;
 
 Status FinderServiceImpl::CheckFood(ServerContext* context,
                                     const FinderRequest* request,
-                                    ServerWriter<ShopInfo>* writer) {
+                                    ShopResponse* response) {
   std::cout << "========== Receving Request Food: " << request->food_name()
             << " ==========" << std::endl;
 
@@ -53,7 +55,8 @@ Status FinderServiceImpl::CheckFood(ServerContext* context,
   std::sort(result.begin(), result.end(), Comp());
 
   for (const auto& info : result) {
-    writer->Write(info);
+    ShopInfo* shopinfo = response->add_shopinfo();
+    *shopinfo = info;
     quantity -= info.inventory().quantity();
     if (quantity <= 0) break;
   }
@@ -98,8 +101,10 @@ std::unique_ptr<ClientReader<VendorInfo>>& SupplierClient::InitReader(
 FinderServiceImpl::FinderServiceImpl(std::string supplier_target_str)
     : supplier_client_(grpc::CreateChannel(
           supplier_target_str, grpc::InsecureChannelCredentials())) {
+  std::cout << "Registered " << supplier_target_str << " as the supplier." << std::endl;
   vector<string> food_names = {"apple", "egg",   "milk",
-                               "flour", "water", "butter"};
+                               "flour", "water", "butter",
+                               "cheese", "chicken", "yeast"};
   InitFoodID(food_names);
 }
 
@@ -184,17 +189,6 @@ vector<ShopInfo> FinderServiceImpl::ProcessRequest(const string& food_name) {
   return result;
 }
 
-void FinderServiceImpl::PrintResult(
-    const uint32_t id, const vector<pair<VendorInfo, InventoryInfo>>& result) {
-  std::cout << "The following " << id << std::endl;
-  for (auto& p : result) {
-    std::cout << "Vendor url: " << p.first.url() << "; name: " << p.first.name()
-              << "; location: " << p.first.location() << std::endl;
-    std::cout << "Inventory price: " << p.second.price()
-              << "; quantity: " << p.second.quantity() << std::endl;
-  }
-}
-
 void RunServer(string& supplier_target_str) {
   std::string server_address("0.0.0.0:50051");
   FinderServiceImpl service(supplier_target_str);
@@ -215,35 +209,15 @@ void RunServer(string& supplier_target_str) {
 }
 
 int main(int argc, char** argv) {
-  // Instantiate the client. It requires a channel, out of which the actual RPCs
-  // are created. This channel models a connection to an endpoint specified by
-  // the argument "--target=" which is the only expected argument.
-  // We indicate that the channel isn't authenticated (use of
-  // InsecureChannelCredentials()).
-  std::string supplier_target_str;
-  std::string arg_str = "--target";
-  if (argc > 1) {
-    std::string arg_val = argv[1];
-    size_t start_pos = arg_val.find(arg_str);
-    if (start_pos != std::string::npos) {
-      start_pos += arg_str.size();
-      if (arg_val[start_pos] == '=') {
-        supplier_target_str = arg_val.substr(start_pos + 1);
-      } else {
-        std::cout << "The only correct argument syntax is --target="
-                  << std::endl;
-        return 0;
-      }
-    } else {
-      std::cout << "The only acceptable argument is --target=" << std::endl;
-      return 0;
+  // The Finder takes the argument -s to get the address of the supplier.
+  std::string supplier_target_str = "0.0.0.0:50052";
+  int c;
+  while ((c = getopt(argc, argv, "s:")) != -1) {
+    switch (c) {
+      case 's':
+        if (optarg) supplier_target_str = optarg;
+        break;
     }
-  } else if (argc > 2) {
-    std::cout << "Too much arguments: The only acceptable argument is --target="
-              << std::endl;
-    return 0;
-  } else {
-    supplier_target_str = "localhost:50052";
   }
 
   RunServer(supplier_target_str);

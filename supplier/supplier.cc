@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #ifdef BAZEL_BUILD
@@ -15,6 +16,9 @@
 #include "supplyfinder.grpc.pb.h"
 #endif
 
+#include "helpers.cc"
+
+using google::protobuf::Empty;
 using grpc::Server;
 using grpc::ServerBuilder;
 using grpc::ServerContext;
@@ -28,35 +32,20 @@ using supplyfinder::FoodID;
 using supplyfinder::Supplier;
 using supplyfinder::VendorInfo;
 
-VendorInfo CreateVendor(std::string url, std::string name, std::string location) {
-  VendorInfo vendor;
-  vendor.set_url(url);
-  vendor.set_name(name);
-  vendor.set_location(location);
-  return vendor;
-}
-
 // Logic and data behind the server's behavior.
 class SupplierServiceImpl final : public Supplier::Service {
  private:
   // DB maintains a mapping ID -> vector<VendorInfo*>.
   // Stores pointers to VendorInfos, which are stored in an array
   std::unordered_map<uint32_t, vector<VendorInfo*>> vendor_db_;
-  VendorInfo vendor[4];
+  // use C style array to ensure the validity of the address
+  VendorInfo vendor_[10]; 
+  int vendor_count_;
+  // Store existing vendor addresses to prevent double counting
+  std::unordered_set<std::string> vendor_addr_;
 
  public:
-  SupplierServiceImpl() {
-    vendor[0] = CreateVendor("localhost:50053", "Kroger", "Ann Arbor, MI");
-    vendor[1] = CreateVendor("localhost:50054", "Trader Joes", "Pittsburgh, PA");
-    vendor[2] = CreateVendor("localhost:50055", "Walmart", "Beijing, CN");
-    vendor[3] = CreateVendor("localhost:50056", "Costco", "Rochester, NY");
-
-    for (int i = 0; i < 10; i++) {
-      for (int j = 0; j < 4; j++) {
-        vendor_db_[i].push_back(&vendor[j]);
-      }
-    }
-  }
+  SupplierServiceImpl() : vendor_count_(0) {}
 
   Status CheckVendor(ServerContext* context, const FoodID* request,
                      ServerWriter<VendorInfo>* writer) override {
@@ -70,6 +59,30 @@ class SupplierServiceImpl final : public Supplier::Service {
     for (const auto vendor : vendors->second) {
       writer->Write(*vendor);
     }
+    return Status::OK;
+  }
+
+  Status RegisterVendor(ServerContext* context, const VendorInfo* request,
+                   Empty* info) {
+    if (vendor_count_ > 9) {
+      return Status(
+          StatusCode::OUT_OF_RANGE,
+          "Reached maximum vendor. Please consider resetting the vendors");
+    }
+    if (vendor_addr_.count(request->url())) {
+      return Status(
+          StatusCode::ALREADY_EXISTS,
+          "Current vendor address already exists.");
+    }
+    std::cout << "Adding Vendor " << request->url() << " " << request->name()
+              << " " << request->location() << std::endl;
+    vendor_[vendor_count_] =
+        MakeVendor(request->url(), request->name(), request->location());
+    for (uint32_t i = 0; i < 10; i++) {
+      vendor_db_[i].push_back(&vendor_[vendor_count_]);
+    }
+    vendor_addr_.insert(request->url());
+    vendor_count_++;
     return Status::OK;
   }
 };

@@ -59,22 +59,21 @@ class FinderServiceImpl final : public supplyfinder::Finder::Service {
    */
  public:
   FinderServiceImpl(std::string supplier_target_str);
-  grpc::Status CheckFood(grpc::ServerContext*, const supplyfinder::FinderRequest*,
-                         grpc::ServerWriter<supplyfinder::ShopInfo>*);
-  static void PrintResult(
-      const uint32_t,
-      const std::vector<
-          std::pair<supplyfinder::VendorInfo, supplyfinder::InventoryInfo>>&);
-  static void PrintVendorInfo(const uint32_t, const supplyfinder::VendorInfo&);
+  grpc::Status CheckFood(grpc::ServerContext*,
+                         const supplyfinder::FinderRequest*,
+                         supplyfinder::ShopResponse*);
   // Get corresponding food ID given food name
   long GetFoodID(const std::string&);
   std::vector<supplyfinder::ShopInfo> ProcessRequest(const std::string&);
 
  private:
+  // Helper functions
+  static void PrintVendorInfo(const uint32_t, const supplyfinder::VendorInfo&);
   void InitFoodID(std::vector<std::string>&);
+  
   SupplierClient supplier_client_;
   // maps server address to the client instance
   std::unordered_map<std::string, VendorClient> vendor_clients_;
-   // maps food name to food id
+  // maps food name to food id
   std::unordered_map<std::string, uint32_t> food_id_;
 };

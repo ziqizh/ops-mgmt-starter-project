@@ -1,4 +1,5 @@
 syntax = "proto3";
+import "google/protobuf/empty.proto";
 
 option java_multiple_files = true;
 option java_package = "io.grpc.examples.supplyfinder";
@@ -12,7 +13,7 @@ service Finder {
   // and vendor server to fetch inventory information.
   // Return satisfying shops info with the lowest price.
   // If the food name doesn't exist, return nothing.
-  rpc CheckFood (FinderRequest) returns (stream ShopInfo) {}
+  rpc CheckFood (FinderRequest) returns (ShopResponse) {}
 }
 
 service Vendor {
@@ -26,6 +27,10 @@ service Supplier {
   // Returns a stream of vendor info. Streaming loadbalaces servers
   // and potentially provides better data parallelism
   rpc CheckVendor (FoodID) returns (stream VendorInfo) {}
+
+  // Register new vendor information. Return OUT_OF_RANGE
+  // if the total number of vendors exceeds 10.
+  rpc RegisterVendor (VendorInfo) returns (google.protobuf.Empty) {}
 }
 
 message FinderRequest {
@@ -44,9 +49,17 @@ message VendorInfo {
   string location = 3;
 }
 
+message SupplierInfo {
+  string url = 1;
+}
+
 message InventoryInfo {
   double price = 1;
   uint32 quantity = 2;
+}
+
+message ShopResponse {
+  repeated ShopInfo shopinfo = 1;
 }
 
 message ShopInfo {

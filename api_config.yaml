@@ -1,0 +1,21 @@
+type: google.api.Service
+config_version: 3
+
+#
+# Name of the service configuration.
+#
+name: supplyfinder.endpoints.cal-intern-project.cloud.goog
+
+#
+# API title to appear in the user interface (Google Cloud Console).
+#
+title: Supply Finder API
+apis:
+- name: supplyfinder.Finder
+- name: supplyfinder.Vendor
+- name: supplyfinder.Supplier
+usage:
+  rules:
+  # ListShelves method can be called without an API Key.
+  - selector: "*"
+    allow_unregistered_calls: true

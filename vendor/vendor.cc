@@ -13,6 +13,8 @@
 #include <thread>
 #include <unordered_map>
 #include <vector>
+#include <unistd.h>
+
 
 #ifdef BAZEL_BUILD
 #include "examples/protos/supplyfinder.grpc.pb.h"
@@ -20,6 +22,11 @@
 #include "supplyfinder.grpc.pb.h"
 #endif
 
+#include "helpers.cc"
+
+using google::protobuf::Empty;
+using grpc::Channel;
+using grpc::ClientContext;
 using grpc::Server;
 using grpc::ServerBuilder;
 using grpc::ServerContext;
@@ -28,6 +35,8 @@ using grpc::StatusCode;
 using supplyfinder::FoodID;
 using supplyfinder::InventoryInfo;
 using supplyfinder::Vendor;
+using supplyfinder::VendorInfo;
+using supplyfinder::Supplier;
 
 // Logic and data behind the server's behavior.
 class VendorServiceImpl final : public Vendor::Service {
@@ -55,13 +64,17 @@ class VendorServiceImpl final : public Vendor::Service {
   Status CheckInventory(ServerContext* context, const FoodID* request,
                         InventoryInfo* info) {
     uint32_t food_id = request->food_id();
+    std::cout << "Food " << food_id;
     auto inventory = inventory_db_.find(food_id);
     if (inventory == inventory_db_.end()) {
+      std::cout << " Not Found" << std::endl;
       Status status(StatusCode::NOT_FOUND, "Food ID not found.");
       return status;
     }
     info->set_price(inventory->second.price());
     info->set_quantity(inventory->second.quantity());
+    std::cout << " has price " << inventory->second.price() << " and quantity "
+              << inventory->second.quantity() << std::endl;
     return Status::OK;
   }
 
@@ -69,6 +82,22 @@ class VendorServiceImpl final : public Vendor::Service {
   // Maps food ID to inventory information
   std::unordered_map<uint32_t, InventoryInfo> inventory_db_;
 };
+
+void RegisterVendor(std::string& supplier_addr, std::string vendor_addr,
+                    std::string name, std::string location) {
+  std::shared_ptr<Channel> channel =
+        grpc::CreateChannel(supplier_addr, grpc::InsecureChannelCredentials());
+  std::unique_ptr<Supplier::Stub> supplier_stub = Supplier::NewStub(channel);
+
+  VendorInfo info = MakeVendor(vendor_addr, name, location);
+  ClientContext context;
+  Empty empty;
+  Status status = supplier_stub->RegisterVendor(&context, info, &empty);
+  if (!status.ok()) {
+    std::cout << status.error_code() << ": " << status.error_message()
+              << std::endl;
+  }
+}
 
 void RunServer(std::string addr) {
   std::string server_address(addr);
@@ -91,21 +120,32 @@ void RunServer(std::string addr) {
   server->Wait();
 }
 
-int main(int argc, char** argv) {
-  int server_number = 4;
-  int base_port = 50053;
-  std::vector<std::thread> threads;
-  for (int i = 0; i < server_number; i++) {
-    int port = base_port + i;
-    std::string addr = "localhost:" + std::to_string(port);
-    std::cout << "Running " << addr << std::endl;
-    threads.emplace_back(RunServer, addr);
+int main(int argc, char* argv[]) {
+  // The vendor address is the public address of itself
+  // The supplier address is the supplier server it talks to
+  std::string vendor_addr = "0.0.0.0:50053";
+  std::string supplier_addr = "0.0.0.0:50052";
+  std::string name = "Wegmans";
+  std::string location = "NY";
+  int c;
+  while ((c = getopt(argc, argv, "s:v:n:l:")) != -1) {
+    switch (c) {
+      case 's':
+        if (optarg) supplier_addr = optarg;
+        break;
+      case 'v':
+        if (optarg) vendor_addr = optarg;
+        break;
+      case 'n':
+        if (optarg) name = optarg;
+        break;
+      case 'l':
+        if (optarg) location = optarg;
+        break;
+    }
   }
-
-  for (auto& t : threads) {
-    t.join();
-  }
-
-  threads.clear();
+  std::cout << "Running " << vendor_addr << std::endl;
+  RegisterVendor(supplier_addr, vendor_addr, name, location);
+  RunServer("0.0.0.0:50053");
   return 0;
 }
