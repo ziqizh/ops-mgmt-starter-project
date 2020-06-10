@@ -17,6 +17,7 @@
  */
 
 #include <grpcpp/grpcpp.h>
+#include <grpcpp/opencensus.h>
 #include <unistd.h>
 
 #include <cstdint>
@@ -26,9 +27,20 @@
 #include <utility>
 #include <vector>
 
-#include "helpers.cc"
+#include "absl/strings/str_cat.h"
+#include "absl/time/clock.h"
+#include "exporters.h"
+#include "helpers.h"
+#include "opencensus/trace/context_util.h"
+#include "opencensus/trace/sampler.h"
+#include "opencensus/trace/trace_config.h"
+#include "opencensus/trace/with_span.h"
 
+#ifdef BAZEL_BUILD
+#include "proto/supplyfinder.grpc.pb.h"
+#else
 #include "supplyfinder.grpc.pb.h"
+#endif
 
 using google::protobuf::Empty;
 using grpc::Channel;
@@ -53,17 +65,26 @@ class FinderClient {
   FinderClient(std::shared_ptr<Channel> channel)
       : stub_(Finder::NewStub(channel)) {}
 
-  void InquireFoodInfo(std::string& food_name, uint32_t quantity) {
+  void InquireFoodInfo(std::string& food_name, uint32_t quantity,
+                        opencensus::trace::AlwaysSampler& sampler) {
+    auto span = opencensus::trace::Span::StartSpan(
+        "Supplyfinder-Client", /*parent=*/nullptr, {&sampler});
+    opencensus::trace::WithSpan ws(span);
     FinderRequest request;
     request.set_food_name(food_name);
     request.set_quantity(quantity);
     ShopInfo reply;
     ClientContext context;
+    context.AddMetadata("key1", "value1");
     ShopResponse response;
+    opencensus::trace::GetCurrentSpan().AddAnnotation("Sending request.");
     Status status = stub_->CheckFood(&context, request, &response);
     if (!status.ok()) {
       std::cout << status.error_code() << ": " << status.error_message()
                 << std::endl;
+      opencensus::trace::GetCurrentSpan().SetStatus(
+          opencensus::trace::StatusCode::UNKNOWN, status.error_message());
+      opencensus::trace::GetCurrentSpan().End();
       return;
     } else if (response.shopinfo_size() == 0) {
       std::cout << "No shop found." << std::endl;
@@ -72,6 +93,7 @@ class FinderClient {
     for (size_t i = 0; i < response.shopinfo_size(); ++i) {
       PrintResult(response.shopinfo(i));
     }
+    opencensus::trace::GetCurrentSpan().End();
   }
 
  private:
@@ -93,19 +115,22 @@ int main(int argc, char* argv[]) {
     }
   }
   std::cout << "Finder address: " << finder_addr << std::endl;
-  FinderClient client(grpc::CreateChannel(
-            finder_addr, grpc::InsecureChannelCredentials()));
-
+  FinderClient client(
+      grpc::CreateChannel(finder_addr, grpc::InsecureChannelCredentials()));
+  grpc::RegisterOpenCensusPlugin();
+  RegisterExporters();
   // Testing
   std::cout << "Try to find some food! Input the food name and quantity"
             << " separated by newline.\n You can try something like: flour, "
-            << "apple, egg, milk, water, or even quail.\n Or q to stop." << std::endl;
+            << "apple, egg, milk, water, or even quail.\n Or q to stop."
+            << std::endl;
 
   int quantity;
   std::string food_name;
   while (getline(std::cin, food_name) && food_name != "q") {
     std::string input;
     getline(std::cin, input);
+    static opencensus::trace::AlwaysSampler sampler;
     quantity = std::stoi(input);
     if (quantity < 0) {
       std::cout << "Please input a positive quantity." << std::endl;
@@ -113,7 +138,7 @@ int main(int argc, char* argv[]) {
     }
     std::cout << "========== Querying Food: " << food_name
               << " Quantity = " << quantity << " ==========" << std::endl;
-    client.InquireFoodInfo(food_name, quantity);
+    client.InquireFoodInfo(food_name, quantity, sampler);
   }
 
   std::cout << "See you again!" << std::endl;

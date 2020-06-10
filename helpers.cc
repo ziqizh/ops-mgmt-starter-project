@@ -1,7 +1,11 @@
 #include <iostream>
 #include <string>
 
+#ifdef BAZEL_BUILD
+#include "proto/supplyfinder.grpc.pb.h"
+#else
 #include "supplyfinder.grpc.pb.h"
+#endif
 
 supplyfinder::VendorInfo MakeVendor(const std::string& url,
                                     const std::string& name,

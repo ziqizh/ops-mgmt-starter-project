@@ -194,7 +194,6 @@ void RunServer(string& supplier_target_str) {
   FinderServiceImpl service(supplier_target_str);
 
   grpc::EnableDefaultHealthCheckService(true);
-  grpc::reflection::InitProtoReflectionServerBuilderPlugin();
   ServerBuilder builder;
 
   builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());

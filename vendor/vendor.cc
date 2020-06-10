@@ -1,6 +1,6 @@
-#include <grpcpp/ext/proto_server_reflection_plugin.h>
 #include <grpcpp/grpcpp.h>
 #include <grpcpp/health_check_service_interface.h>
+#include <grpcpp/opencensus.h>
 #include <stdlib.h>
 
 #include <algorithm>
@@ -15,14 +15,27 @@
 #include <vector>
 #include <unistd.h>
 
+#include "absl/strings/escaping.h"
+#include "absl/strings/numbers.h"
+#include "absl/strings/str_cat.h"
+// #include "opencensus/exporters/stats/prometheus/prometheus_exporter.h"
+#include "opencensus/stats/stats.h"
+#include "opencensus/tags/context_util.h"
+#include "opencensus/tags/tag_map.h"
+#include "opencensus/trace/context_util.h"
+#include "opencensus/trace/sampler.h"
+#include "opencensus/trace/span.h"
+#include "opencensus/trace/trace_config.h"
+
 
 #ifdef BAZEL_BUILD
-#include "examples/protos/supplyfinder.grpc.pb.h"
+#include "proto/supplyfinder.grpc.pb.h"
 #else
 #include "supplyfinder.grpc.pb.h"
 #endif
 
-#include "helpers.cc"
+#include "helpers.h"
+#include "exporters.h"
 
 using google::protobuf::Empty;
 using grpc::Channel;
@@ -104,7 +117,6 @@ void RunServer(std::string addr) {
   VendorServiceImpl service;
 
   grpc::EnableDefaultHealthCheckService(true);
-  grpc::reflection::InitProtoReflectionServerBuilderPlugin();
   ServerBuilder builder;
   // Listen on the given address without any authentication mechanism.
   builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
@@ -145,6 +157,9 @@ int main(int argc, char* argv[]) {
     }
   }
   std::cout << "Running " << vendor_addr << std::endl;
+  grpc::RegisterOpenCensusPlugin();
+  grpc::RegisterOpenCensusViewsForExport();
+  RegisterExporters();
   RegisterVendor(supplier_addr, vendor_addr, name, location);
   RunServer("0.0.0.0:50053");
   return 0;
