@@ -138,9 +138,10 @@ int main(int argc, char* argv[]) {
   std::string vendor_addr = "0.0.0.0:50053";
   std::string supplier_addr = "0.0.0.0:50052";
   std::string name = "Wegmans";
+  std::string port = "50053";
   std::string location = "NY";
   int c;
-  while ((c = getopt(argc, argv, "s:v:n:l:")) != -1) {
+  while ((c = getopt(argc, argv, "s:v:n:l:p:")) != -1) {
     switch (c) {
       case 's':
         if (optarg) supplier_addr = optarg;
@@ -154,6 +155,9 @@ int main(int argc, char* argv[]) {
       case 'l':
         if (optarg) location = optarg;
         break;
+      case 'p':
+        if (optarg) port = optarg;
+        break;
     }
   }
   std::cout << "Running " << vendor_addr << std::endl;
@@ -161,6 +165,6 @@ int main(int argc, char* argv[]) {
   grpc::RegisterOpenCensusViewsForExport();
   RegisterExporters();
   RegisterVendor(supplier_addr, vendor_addr, name, location);
-  RunServer("0.0.0.0:50053");
+  RunServer("0.0.0.0:" + port);
   return 0;
 }
