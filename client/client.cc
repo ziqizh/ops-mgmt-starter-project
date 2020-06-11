@@ -66,34 +66,37 @@ class FinderClient {
       : stub_(Finder::NewStub(channel)) {}
 
   void InquireFoodInfo(std::string& food_name, uint32_t quantity,
-                        opencensus::trace::AlwaysSampler& sampler) {
+                       opencensus::trace::AlwaysSampler& sampler2) {
+    static opencensus::trace::AlwaysSampler sampler;
     auto span = opencensus::trace::Span::StartSpan(
         "Supplyfinder-Client", /*parent=*/nullptr, {&sampler});
-    opencensus::trace::WithSpan ws(span);
-    FinderRequest request;
-    request.set_food_name(food_name);
-    request.set_quantity(quantity);
-    ShopInfo reply;
-    ClientContext context;
-    context.AddMetadata("key1", "value1");
-    ShopResponse response;
-    opencensus::trace::GetCurrentSpan().AddAnnotation("Sending request.");
-    Status status = stub_->CheckFood(&context, request, &response);
-    if (!status.ok()) {
-      std::cout << status.error_code() << ": " << status.error_message()
-                << std::endl;
-      opencensus::trace::GetCurrentSpan().SetStatus(
-          opencensus::trace::StatusCode::UNKNOWN, status.error_message());
+    {
+      opencensus::trace::WithSpan ws(span);
+      FinderRequest request;
+      request.set_food_name(food_name);
+      request.set_quantity(quantity);
+      ShopInfo reply;
+      ClientContext context;
+      context.AddMetadata("key1", "value1");
+      ShopResponse response;
+      opencensus::trace::GetCurrentSpan().AddAnnotation("Sending request.");
+      Status status = stub_->CheckFood(&context, request, &response);
+      if (!status.ok()) {
+        std::cout << status.error_code() << ": " << status.error_message()
+                  << std::endl;
+        opencensus::trace::GetCurrentSpan().SetStatus(
+            opencensus::trace::StatusCode::UNKNOWN, status.error_message());
+        opencensus::trace::GetCurrentSpan().End();
+        return;
+      } else if (response.shopinfo_size() == 0) {
+        std::cout << "No shop found." << std::endl;
+      }
+      std::cout << "Receiving Shop Information" << std::endl;
+      for (size_t i = 0; i < response.shopinfo_size(); ++i) {
+        PrintResult(response.shopinfo(i));
+      }
       opencensus::trace::GetCurrentSpan().End();
-      return;
-    } else if (response.shopinfo_size() == 0) {
-      std::cout << "No shop found." << std::endl;
     }
-    std::cout << "Receiving Shop Information" << std::endl;
-    for (size_t i = 0; i < response.shopinfo_size(); ++i) {
-      PrintResult(response.shopinfo(i));
-    }
-    opencensus::trace::GetCurrentSpan().End();
   }
 
  private:

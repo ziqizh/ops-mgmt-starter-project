@@ -1,14 +1,4 @@
-#include <algorithm>
-#include <cctype>
-#include <cstdint>
-#include <iostream>
-#include <memory>
-#include <string>
-#include <utility>
-#include <vector>
-#include <unistd.h>
 
-// #include <grpcpp/grpcpp.h>
 #include "finder.h"
 
 using grpc::Channel;
@@ -37,14 +27,31 @@ using supplyfinder::Supplier;
 using supplyfinder::Vendor;
 using supplyfinder::VendorInfo;
 
+void PerformWork(opencensus::trace::Span *parent) {
+  std::cerr << " Performing work \n ";
+  auto span = opencensus::trace::Span::StartSpan("internal_work", parent);
+  span.AddAttribute("my_attribute", "blue");
+  span.AddAnnotation("Performing work.");
+  absl::SleepFor(absl::Milliseconds(20));  // Working hard here.
+  span.End();
+}
+
 Status FinderServiceImpl::CheckFood(ServerContext* context,
                                     const FinderRequest* request,
                                     ShopResponse* response) {
   std::cout << "========== Receving Request Food: " << request->food_name()
             << " ==========" << std::endl;
-
+  opencensus::trace::Span span = grpc::GetSpanFromServerContext(context);
+  
+  span.AddAttribute("my_attribute", "red");
+  span.AddAnnotation(
+        "Processing request.");
+  PerformWork(&span);
   vector<ShopInfo> result = ProcessRequest(request->food_name());
   long quantity = request->quantity();
+  std::cerr << "  Current context: "
+              << span.context().ToString()
+              << "\n";
 
   if (result.empty()) {
     Status status(StatusCode::NOT_FOUND,
@@ -53,6 +60,8 @@ Status FinderServiceImpl::CheckFood(ServerContext* context,
   }
 
   std::sort(result.begin(), result.end(), Comp());
+  absl::SleepFor(absl::Milliseconds(40));
+  span.End();
 
   for (const auto& info : result) {
     ShopInfo* shopinfo = response->add_shopinfo();
@@ -218,7 +227,9 @@ int main(int argc, char** argv) {
         break;
     }
   }
-
+  grpc::RegisterOpenCensusPlugin();
+  grpc::RegisterOpenCensusViewsForExport();
+  RegisterExporters();
   RunServer(supplier_target_str);
 
   return 0;
