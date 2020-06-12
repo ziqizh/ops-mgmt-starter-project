@@ -27,31 +27,17 @@ using supplyfinder::Supplier;
 using supplyfinder::Vendor;
 using supplyfinder::VendorInfo;
 
-void PerformWork(opencensus::trace::Span *parent) {
-  std::cerr << " Performing work \n ";
-  auto span = opencensus::trace::Span::StartSpan("internal_work", parent);
-  span.AddAttribute("my_attribute", "blue");
-  span.AddAnnotation("Performing work.");
-  absl::SleepFor(absl::Milliseconds(20));  // Working hard here.
-  span.End();
-}
-
 Status FinderServiceImpl::CheckFood(ServerContext* context,
                                     const FinderRequest* request,
                                     ShopResponse* response) {
   std::cout << "========== Receving Request Food: " << request->food_name()
             << " ==========" << std::endl;
-  opencensus::trace::Span span = grpc::GetSpanFromServerContext(context);
-  
-  span.AddAttribute("my_attribute", "red");
-  span.AddAnnotation(
-        "Processing request.");
-  PerformWork(&span);
-  vector<ShopInfo> result = ProcessRequest(request->food_name());
+  const opencensus::trace::Span& span = grpc::GetSpanFromServerContext(context);
+  span.AddAnnotation("Processing request.");
+  absl::SleepFor(absl::Milliseconds(10));
+  vector<ShopInfo> result = ProcessRequest(request->food_name(), &span);
   long quantity = request->quantity();
-  std::cerr << "  Current context: "
-              << span.context().ToString()
-              << "\n";
+  std::cerr << "  Current context: " << span.context().ToString() << "\n";
 
   if (result.empty()) {
     Status status(StatusCode::NOT_FOUND,
@@ -59,10 +45,12 @@ Status FinderServiceImpl::CheckFood(ServerContext* context,
     return status;
   }
 
+  span.AddAnnotation("Get all supply info. Sorting.");
+  absl::SleepFor(absl::Milliseconds(10));
   std::sort(result.begin(), result.end(), Comp());
-  absl::SleepFor(absl::Milliseconds(40));
-  span.End();
 
+  span.AddAnnotation("Returning all qualifying supply.");
+  absl::SleepFor(absl::Milliseconds(10));
   for (const auto& info : result) {
     ShopInfo* shopinfo = response->add_shopinfo();
     *shopinfo = info;
@@ -110,10 +98,10 @@ std::unique_ptr<ClientReader<VendorInfo>>& SupplierClient::InitReader(
 FinderServiceImpl::FinderServiceImpl(std::string supplier_target_str)
     : supplier_client_(grpc::CreateChannel(
           supplier_target_str, grpc::InsecureChannelCredentials())) {
-  std::cout << "Registered " << supplier_target_str << " as the supplier." << std::endl;
-  vector<string> food_names = {"apple", "egg",   "milk",
-                               "flour", "water", "butter",
-                               "cheese", "chicken", "yeast"};
+  std::cout << "Registered " << supplier_target_str << " as the supplier."
+            << std::endl;
+  vector<string> food_names = {"apple",  "egg",    "milk",    "flour", "water",
+                               "butter", "cheese", "chicken", "yeast"};
   InitFoodID(food_names);
 }
 
@@ -144,7 +132,8 @@ void FinderServiceImpl::InitFoodID(vector<string>& food_names) {
   }
 }
 
-vector<ShopInfo> FinderServiceImpl::ProcessRequest(const string& food_name) {
+vector<ShopInfo> FinderServiceImpl::ProcessRequest(
+    const string& food_name, const opencensus::trace::Span* parent) {
   /*
    * Initiate client with supplier channel. Retrieve a list of vendor address
    * Then create client
@@ -154,6 +143,9 @@ vector<ShopInfo> FinderServiceImpl::ProcessRequest(const string& food_name) {
   VendorInfo vendor_info;
   ClientContext context;
   FoodID request;
+  auto span =
+      opencensus::trace::Span::StartSpan("Querying information", parent);
+  span.AddAnnotation("Querying information from supplier and vendors.");
   long food_id = GetFoodID(food_name);
   if (food_id < 0) {
     // if no corresponding food id, return empty vector
@@ -195,6 +187,7 @@ vector<ShopInfo> FinderServiceImpl::ProcessRequest(const string& food_name) {
     std::cout << status.error_code() << ": " << status.error_message()
               << std::endl;
   }
+  span.End();
   return result;
 }
 
@@ -202,7 +195,7 @@ void RunServer(string& supplier_target_str) {
   std::string server_address("0.0.0.0:50051");
   FinderServiceImpl service(supplier_target_str);
 
-  grpc::EnableDefaultHealthCheckService(true);
+  // grpc::EnableDefaultHealthCheckService(true);
   ServerBuilder builder;
 
   builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
@@ -230,6 +223,8 @@ int main(int argc, char** argv) {
   grpc::RegisterOpenCensusPlugin();
   grpc::RegisterOpenCensusViewsForExport();
   RegisterExporters();
+  opencensus::trace::TraceConfig::SetCurrentTraceParams(
+      {128, 128, 128, 128, opencensus::trace::ProbabilitySampler(1.0)});
   RunServer(supplier_target_str);
 
   return 0;

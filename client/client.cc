@@ -38,8 +38,10 @@
 
 #ifdef BAZEL_BUILD
 #include "proto/supplyfinder.grpc.pb.h"
+#include "proto/supplyfinder.pb.h"
 #else
 #include "supplyfinder.grpc.pb.h"
+#include "supplyfinder.pb.h"
 #endif
 
 using google::protobuf::Empty;
@@ -65,11 +67,10 @@ class FinderClient {
   FinderClient(std::shared_ptr<Channel> channel)
       : stub_(Finder::NewStub(channel)) {}
 
-  void InquireFoodInfo(std::string& food_name, uint32_t quantity,
-                       opencensus::trace::AlwaysSampler& sampler2) {
-    static opencensus::trace::AlwaysSampler sampler;
+  void InquireFoodInfo(std::string& food_name, uint32_t quantity) {
     auto span = opencensus::trace::Span::StartSpan(
-        "Supplyfinder-Client", /*parent=*/nullptr, {&sampler});
+        "Supplyfinder-Client", /*parent=*/nullptr);
+    std::cout << span.context().trace_id().Value();
     {
       opencensus::trace::WithSpan ws(span);
       FinderRequest request;
@@ -91,6 +92,7 @@ class FinderClient {
       } else if (response.shopinfo_size() == 0) {
         std::cout << "No shop found." << std::endl;
       }
+      opencensus::trace::GetCurrentSpan().AddAnnotation("Printing Shop Information.");
       std::cout << "Receiving Shop Information" << std::endl;
       for (size_t i = 0; i < response.shopinfo_size(); ++i) {
         PrintResult(response.shopinfo(i));
@@ -120,6 +122,8 @@ int main(int argc, char* argv[]) {
   std::cout << "Finder address: " << finder_addr << std::endl;
   FinderClient client(
       grpc::CreateChannel(finder_addr, grpc::InsecureChannelCredentials()));
+  opencensus::trace::TraceConfig::SetCurrentTraceParams(
+      {128, 128, 128, 128, opencensus::trace::ProbabilitySampler(1.0)});
   grpc::RegisterOpenCensusPlugin();
   RegisterExporters();
   // Testing
@@ -133,7 +137,6 @@ int main(int argc, char* argv[]) {
   while (getline(std::cin, food_name) && food_name != "q") {
     std::string input;
     getline(std::cin, input);
-    static opencensus::trace::AlwaysSampler sampler;
     quantity = std::stoi(input);
     if (quantity < 0) {
       std::cout << "Please input a positive quantity." << std::endl;
@@ -141,7 +144,7 @@ int main(int argc, char* argv[]) {
     }
     std::cout << "========== Querying Food: " << food_name
               << " Quantity = " << quantity << " ==========" << std::endl;
-    client.InquireFoodInfo(food_name, quantity, sampler);
+    client.InquireFoodInfo(food_name, quantity);
   }
 
   std::cout << "See you again!" << std::endl;

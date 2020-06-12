@@ -1,17 +1,18 @@
 // #include <grpcpp/ext/proto_server_reflection_plugin.h>
 
+#include <grpcpp/grpcpp.h>
+#include <unistd.h>
+
 #include <algorithm>
 #include <cctype>
+#include <cstdint>
 #include <iostream>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
-#include <unistd.h>
-#include <cstdint>
-#include <unordered_map>
-#include <grpcpp/grpcpp.h>
-#include <grpcpp/health_check_service_interface.h>
+// #include <grpcpp/health_check_service_interface.h>
 #include <grpcpp/opencensus.h>
 
 #include "absl/strings/escaping.h"
@@ -28,6 +29,7 @@
 
 #ifdef BAZEL_BUILD
 #include "proto/supplyfinder.grpc.pb.h"
+#include "proto/supplyfinder.pb.h"
 #else
 #include "supplyfinder.grpc.pb.h"
 #endif
@@ -83,13 +85,14 @@ class FinderServiceImpl final : public supplyfinder::Finder::Service {
                          supplyfinder::ShopResponse*);
   // Get corresponding food ID given food name
   long GetFoodID(const std::string&);
-  std::vector<supplyfinder::ShopInfo> ProcessRequest(const std::string&);
+  std::vector<supplyfinder::ShopInfo> ProcessRequest(const std::string&,
+                                                     const opencensus::trace::Span*);
 
  private:
   // Helper functions
   static void PrintVendorInfo(const uint32_t, const supplyfinder::VendorInfo&);
   void InitFoodID(std::vector<std::string>&);
-  
+
   SupplierClient supplier_client_;
   // maps server address to the client instance
   std::unordered_map<std::string, VendorClient> vendor_clients_;
