@@ -70,7 +70,6 @@ class FinderClient {
   void InquireFoodInfo(std::string& food_name, uint32_t quantity) {
     auto span = opencensus::trace::Span::StartSpan(
         "Supplyfinder-Client", /*parent=*/nullptr);
-    std::cout << span.context().trace_id().Value();
     {
       opencensus::trace::WithSpan ws(span);
       FinderRequest request;
@@ -78,7 +77,7 @@ class FinderClient {
       request.set_quantity(quantity);
       ShopInfo reply;
       ClientContext context;
-      context.AddMetadata("key1", "value1");
+      context.AddMetadata("supplyfinder", "finder");
       ShopResponse response;
       opencensus::trace::GetCurrentSpan().AddAnnotation("Sending request.");
       Status status = stub_->CheckFood(&context, request, &response);
