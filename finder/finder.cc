@@ -195,7 +195,6 @@ void RunServer(string& supplier_target_str) {
   std::string server_address("0.0.0.0:50051");
   FinderServiceImpl service(supplier_target_str);
 
-  // grpc::EnableDefaultHealthCheckService(true);
   ServerBuilder builder;
 
   builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());

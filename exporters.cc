@@ -17,8 +17,6 @@
 #include <cstdlib>
 #include <iostream>
 
-// #include "opencensus/exporters/stats/stackdriver/stackdriver_exporter.h"
-// #include "opencensus/exporters/stats/stdout/stdout_exporter.h"
 #include "opencensus/exporters/trace/ocagent/ocagent_exporter.h"
 #include "opencensus/exporters/trace/stackdriver/stackdriver_exporter.h"
 #include "opencensus/exporters/trace/stdout/stdout_exporter.h"
@@ -35,11 +33,6 @@ void RegisterExporters() {
   } else {
     std::cout << "RegisterStackdriverExporters:\n";
     std::cout << "  project_id = \"" << project_id << "\"\n";
-
-    // opencensus::exporters::stats::StackdriverOptions stats_opts;
-    // stats_opts.project_id = project_id;
-    // opencensus::exporters::stats::StackdriverExporter::Register(
-    //     std::move(stats_opts));
 
     opencensus::exporters::trace::StackdriverOptions trace_opts;
     trace_opts.project_id = project_id;

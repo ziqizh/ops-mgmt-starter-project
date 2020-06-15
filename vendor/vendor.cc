@@ -18,7 +18,6 @@
 #include "absl/strings/escaping.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
-// #include "opencensus/exporters/stats/prometheus/prometheus_exporter.h"
 #include "opencensus/stats/stats.h"
 #include "opencensus/tags/context_util.h"
 #include "opencensus/tags/tag_map.h"
