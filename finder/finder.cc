@@ -34,7 +34,6 @@ Status FinderServiceImpl::CheckFood(ServerContext* context,
             << " ==========" << std::endl;
   const opencensus::trace::Span& span = grpc::GetSpanFromServerContext(context);
   span.AddAnnotation("Processing request.");
-  absl::SleepFor(absl::Milliseconds(10));
   vector<ShopInfo> result = ProcessRequest(request->food_name(), &span);
   long quantity = request->quantity();
   std::cerr << "  Current context: " << span.context().ToString() << "\n";
@@ -46,11 +45,9 @@ Status FinderServiceImpl::CheckFood(ServerContext* context,
   }
 
   span.AddAnnotation("Get all supply info. Sorting.");
-  absl::SleepFor(absl::Milliseconds(10));
   std::sort(result.begin(), result.end(), Comp());
 
   span.AddAnnotation("Returning all qualifying supply.");
-  absl::SleepFor(absl::Milliseconds(10));
   for (const auto& info : result) {
     ShopInfo* shopinfo = response->add_shopinfo();
     *shopinfo = info;
@@ -95,7 +92,7 @@ std::unique_ptr<ClientReader<VendorInfo>>& SupplierClient::InitReader(
   return reader_;
 }
 
-FinderServiceImpl::FinderServiceImpl(std::string supplier_target_str)
+FinderServiceImpl::FinderServiceImpl(const std::string& supplier_target_str)
     : supplier_client_(grpc::CreateChannel(
           supplier_target_str, grpc::InsecureChannelCredentials())) {
   std::cout << "Registered " << supplier_target_str << " as the supplier."

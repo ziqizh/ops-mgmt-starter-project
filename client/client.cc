@@ -88,15 +88,15 @@ class FinderClient {
             opencensus::trace::StatusCode::UNKNOWN, status.error_message());
         opencensus::trace::GetCurrentSpan().End();
         return;
-      } else if (response.shopinfo_size() == 0) {
+      } else if (response.shopinfo().empty()) {
         std::cout << "No shop found." << std::endl;
+        return;
       }
       opencensus::trace::GetCurrentSpan().AddAnnotation("Printing Shop Information.");
       std::cout << "Receiving Shop Information" << std::endl;
-      for (size_t i = 0; i < response.shopinfo_size(); ++i) {
-        PrintResult(response.shopinfo(i));
+      for (const auto& shopinfo : response.shopinfo()) {
+        PrintResult(shopinfo);
       }
-      opencensus::trace::GetCurrentSpan().End();
     }
   }
 

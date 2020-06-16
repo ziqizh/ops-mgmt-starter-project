@@ -5,8 +5,8 @@
 #endif
 #include <string>
 
+supplyfinder::VendorInfo MakeVendor(const std::string& url,
+                                    const std::string& name,
+                                    const std::string& location);
 
-supplyfinder::VendorInfo MakeVendor(const std::string&, const std::string&,
-                                    const std::string&);
-
-void PrintResult(const supplyfinder::ShopInfo&);
+void PrintResult(const supplyfinder::ShopInfo& info);

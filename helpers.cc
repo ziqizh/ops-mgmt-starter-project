@@ -17,10 +17,10 @@ supplyfinder::VendorInfo MakeVendor(const std::string& url,
   return vendor;
 }
 
-void PrintResult(const supplyfinder::ShopInfo& p) {
-  std::cout << "\tVendor url: " << p.vendor().url()
-            << "; name: " << p.vendor().name()
-            << "; location: " << p.vendor().location() << std::endl;
-  std::cout << "\tInventory price: " << p.inventory().price()
-            << "; quantity: " << p.inventory().quantity() << "\n\n";
+void PrintResult(const supplyfinder::ShopInfo& info) {
+  std::cout << "\tVendor url: " << info.vendor().url()
+            << "; name: " << info.vendor().name()
+            << "; location: " << info.vendor().location() << std::endl;
+  std::cout << "\tInventory price: " << info.inventory().price()
+            << "; quantity: " << info.inventory().quantity() << "\n\n";
 }

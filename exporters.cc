@@ -23,7 +23,6 @@
 
 void RegisterExporters() {
   // For debugging, register exporters that just write to stdout.
-  // opencensus::exporters::stats::StdoutExporter::Register();
   opencensus::exporters::trace::StdoutExporter::Register();
 
   const char* project_id = getenv("STACKDRIVER_PROJECT_ID");
