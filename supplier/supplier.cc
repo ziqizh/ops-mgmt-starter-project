@@ -1,4 +1,3 @@
-#include <grpcpp/ext/proto_server_reflection_plugin.h>
 #include <grpcpp/grpcpp.h>
 #include <grpcpp/health_check_service_interface.h>
 
@@ -11,12 +10,12 @@
 #include <vector>
 
 #ifdef BAZEL_BUILD
-#include "examples/protos/supplyfinder.grpc.pb.h"
+#include "proto/supplyfinder.grpc.pb.h"
 #else
 #include "supplyfinder.grpc.pb.h"
 #endif
 
-#include "helpers.cc"
+#include "helpers.h"
 
 using google::protobuf::Empty;
 using grpc::Server;
@@ -49,10 +48,10 @@ class SupplierServiceImpl final : public Supplier::Service {
 
   Status CheckVendor(ServerContext* context, const FoodID* request,
                      ServerWriter<VendorInfo>* writer) override {
-    std::cout << "supplier server received id: " << request->food_id()
-              << std::endl;
     uint32_t food_id = request->food_id();
-    auto vendors = vendor_db_.find(request->food_id());
+    std::cout << "supplier server received id: " << food_id
+              << std::endl;
+    auto vendors = vendor_db_.find(food_id);
     if (vendors == vendor_db_.end()) {
       return Status(StatusCode::NOT_FOUND, "Food ID not found.");
     }
@@ -92,7 +91,6 @@ void RunServer() {
   SupplierServiceImpl service;
 
   grpc::EnableDefaultHealthCheckService(true);
-  grpc::reflection::InitProtoReflectionServerBuilderPlugin();
   ServerBuilder builder;
   // Listen on the given address without any authentication mechanism.
   builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());

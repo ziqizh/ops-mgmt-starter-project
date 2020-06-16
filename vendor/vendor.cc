@@ -1,6 +1,6 @@
-#include <grpcpp/ext/proto_server_reflection_plugin.h>
 #include <grpcpp/grpcpp.h>
 #include <grpcpp/health_check_service_interface.h>
+#include <grpcpp/opencensus.h>
 #include <stdlib.h>
 
 #include <algorithm>
@@ -15,14 +15,26 @@
 #include <vector>
 #include <unistd.h>
 
+#include "absl/strings/escaping.h"
+#include "absl/strings/numbers.h"
+#include "absl/strings/str_cat.h"
+#include "opencensus/stats/stats.h"
+#include "opencensus/tags/context_util.h"
+#include "opencensus/tags/tag_map.h"
+#include "opencensus/trace/context_util.h"
+#include "opencensus/trace/sampler.h"
+#include "opencensus/trace/span.h"
+#include "opencensus/trace/trace_config.h"
+
 
 #ifdef BAZEL_BUILD
-#include "examples/protos/supplyfinder.grpc.pb.h"
+#include "proto/supplyfinder.grpc.pb.h"
 #else
 #include "supplyfinder.grpc.pb.h"
 #endif
 
-#include "helpers.cc"
+#include "helpers.h"
+#include "exporters.h"
 
 using google::protobuf::Empty;
 using grpc::Channel;
@@ -104,7 +116,6 @@ void RunServer(std::string addr) {
   VendorServiceImpl service;
 
   grpc::EnableDefaultHealthCheckService(true);
-  grpc::reflection::InitProtoReflectionServerBuilderPlugin();
   ServerBuilder builder;
   // Listen on the given address without any authentication mechanism.
   builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
@@ -126,9 +137,10 @@ int main(int argc, char* argv[]) {
   std::string vendor_addr = "0.0.0.0:50053";
   std::string supplier_addr = "0.0.0.0:50052";
   std::string name = "Wegmans";
+  std::string port = "50053";
   std::string location = "NY";
   int c;
-  while ((c = getopt(argc, argv, "s:v:n:l:")) != -1) {
+  while ((c = getopt(argc, argv, "s:v:n:l:p:")) != -1) {
     switch (c) {
       case 's':
         if (optarg) supplier_addr = optarg;
@@ -142,10 +154,16 @@ int main(int argc, char* argv[]) {
       case 'l':
         if (optarg) location = optarg;
         break;
+      case 'p':
+        if (optarg) port = optarg;
+        break;
     }
   }
   std::cout << "Running " << vendor_addr << std::endl;
+  grpc::RegisterOpenCensusPlugin();
+  grpc::RegisterOpenCensusViewsForExport();
+  RegisterExporters();
   RegisterVendor(supplier_addr, vendor_addr, name, location);
-  RunServer("0.0.0.0:50053");
+  RunServer("0.0.0.0:" + port);
   return 0;
 }
